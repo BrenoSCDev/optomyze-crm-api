@@ -11,22 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('companies', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
             $table->string('phone')->nullable();
-            $table->enum('role', ['admin', 'manager', 'agent'])->default('agent');
+            $table->string('website')->nullable();
+            $table->enum('subscription_plan', ['basic', 'premium', 'enterprise'])->default('basic');
             $table->boolean('is_active')->default(true);
-            $table->timestamp('last_login_at')->nullable();
-            $table->rememberToken();
+            $table->json('settings')->nullable();
             $table->timestamps();
             $table->softDeletes();
             
             // Indexes
-            $table->index('last_login_at');
+            $table->index(['is_active', 'deleted_at']);
+            $table->index('subscription_plan');
         });
     }
 
@@ -35,6 +34,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('companies');
     }
 };
