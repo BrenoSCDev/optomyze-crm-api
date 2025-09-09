@@ -1,0 +1,97 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Funnel;
+use App\Models\Stage;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class StageController extends Controller
+{
+    /**
+     * List all stages for a funnel (only if funnel belongs to user's company).
+     */
+    public function index($funnelId)
+    {
+        $user = Auth::user();
+
+        $funnel = Funnel::fromCompany($user->company_id)->findOrFail($funnelId);
+
+        $stages = $funnel->stages()->ordered()->get();
+
+        return response()->json($stages);
+    }
+
+    /**
+     * Store a new stage in a funnel.
+     */
+    public function store(Request $request, $funnelId)
+    {
+        $user = Auth::user();
+
+        $funnel = Funnel::fromCompany($user->company_id)->findOrFail($funnelId);
+
+        $validated = $request->validate(Stage::validationRules());
+
+        $stage = Stage::create([
+            'funnel_id'   => $funnel->id,
+            'name'        => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'order'       => $validated['order'] ?? null,
+            'type'        => $validated['type'],  // ✅ new column
+            'is_active'   => $validated['is_active'] ?? true,
+            'settings'    => $validated['settings'] ?? null,
+        ]);
+
+        return response()->json($stage, 201);
+    }
+
+    /**
+     * Show a single stage.
+     */
+    public function show($funnelId, $stageId)
+    {
+        $user = Auth::user();
+
+        $stage = Stage::fromCompany($user->company_id)
+            ->where('funnel_id', $funnelId)
+            ->findOrFail($stageId);
+
+        return response()->json($stage);
+    }
+
+    /**
+     * Update a stage.
+     */
+    public function update(Request $request, $funnelId, $stageId)
+    {
+        $user = Auth::user();
+
+        $stage = Stage::fromCompany($user->company_id)
+            ->where('funnel_id', $funnelId)
+            ->findOrFail($stageId);
+
+        $validated = $request->validate(Stage::updateValidationRules());
+
+        $stage->update($validated);
+
+        return response()->json($stage);
+    }
+
+    /**
+     * Delete a stage.
+     */
+    public function destroy($funnelId, $stageId)
+    {
+        $user = Auth::user();
+
+        $stage = Stage::fromCompany($user->company_id)
+            ->where('funnel_id', $funnelId)
+            ->findOrFail($stageId);
+
+        $stage->delete();
+
+        return response()->json(['message' => 'Stage deleted successfully']);
+    }
+}

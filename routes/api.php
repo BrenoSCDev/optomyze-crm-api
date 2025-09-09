@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\FunnelController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\StageController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -27,4 +28,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/funnels/{id}', [FunnelController::class, 'show']);
     Route::put('/funnels/{id}', [FunnelController::class, 'update']);
     Route::delete('/funnels/{id}', [FunnelController::class, 'destroy']);
+
+    Route::get('/funnels/{funnelId}/stages', [StageController::class, 'index']);
+    Route::post('/funnels/{funnelId}/stages', [StageController::class, 'store']);
+    Route::get('/funnels/{funnelId}/stages/{stageId}', [StageController::class, 'show']);
+    Route::put('/funnels/{funnelId}/stages/{stageId}', [StageController::class, 'update']);
+    Route::delete('/funnels/{funnelId}/stages/{stageId}', [StageController::class, 'destroy']);
 });
