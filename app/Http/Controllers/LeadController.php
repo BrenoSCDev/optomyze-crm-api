@@ -143,7 +143,7 @@ class LeadController extends Controller
             'source_type' => 'nullable|string|max:50',
             'workflow_id' => 'nullable|string|max:255',
             'automation_name' => 'nullable|string|max:255',
-            'first_name' => 'nullable|string|max:100',
+            'first_name' => 'required|string|max:100',
             'last_name' => 'nullable|string|max:100',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
