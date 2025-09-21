@@ -58,6 +58,17 @@ class Funnel extends Model
     }
 
     /**
+     * Get total leads count across all stages in the funnel.
+     */
+    public function totalLeadsCount(): int
+    {
+        return $this->stages()
+            ->withCount('leads')
+            ->get()
+            ->sum('leads_count');
+    }
+
+    /**
      * Get only active stages for this funnel.
      */
     public function activeStages(): HasMany

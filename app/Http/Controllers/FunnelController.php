@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Funnel;
+use App\Models\Tag;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -93,5 +94,21 @@ class FunnelController extends Controller
         $funnel->delete();
 
         return response()->json(['message' => 'Funnel deleted successfully']);
+    }
+
+    public function leadsByStages($id)
+    {
+        $user = Auth::user();
+
+        $funnel = Funnel::with([
+            'stages.activeLeads'
+        ])->findOrFail($id);
+
+        $tags = Tag::fromCompany($user->company_id)->get();
+
+        return response()->json([
+            'funnel' => $funnel,
+            'tags' => $tags,
+        ]);
     }
 }

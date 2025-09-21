@@ -52,10 +52,10 @@ class User extends Authenticatable
     /**
      * Get the company that owns the user.
      */
-    // public function company(): BelongsTo
-    // {
-    //     return $this->belongsTo(Company::class);
-    // }
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     // /**
     //  * Get the funnels created by the user.

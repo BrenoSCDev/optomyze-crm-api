@@ -20,6 +20,7 @@ class Stage extends Model
         'funnel_id',
         'name',
         'description',
+        'type',
         'order',
         'color',
         'is_active',
@@ -176,6 +177,22 @@ class Stage extends Model
     }
 
     /**
+     * Get all leads in this stage.
+     */
+    public function leads(): HasMany
+    {
+        return $this->hasMany(Lead::class);
+    }
+
+    /**
+     * Get active leads in this stage.
+     */
+    public function activeLeads(): HasMany
+    {
+        return $this->leads()->where('is_active', true);
+    }
+
+    /**
      * Validation rules for stage creation.
      */
     public static function validationRules(): array
@@ -200,10 +217,10 @@ class Stage extends Model
     public static function updateValidationRules(): array
     {
         return [
-            'name' => 'required|string|max:100',
+            'name' => 'string|max:100',
             'description' => 'nullable|string|max:1000',
-            'order' => 'required|integer|min:1',
-            'type' => 'required|in:entry,normal,service,proposition,qualified,conversion,lost',
+            'order' => 'integer|min:1',
+            'type' => 'in:entry,normal,service,proposition,qualified,conversion,lost',
             'is_active' => 'boolean',
             'settings' => 'nullable|array',
             'settings.sla_hours' => 'nullable|integer|min:1',

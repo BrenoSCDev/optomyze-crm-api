@@ -39,7 +39,7 @@ class StageController extends Controller
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
             'order'       => $validated['order'] ?? null,
-            'type'        => $validated['type'],  // ✅ new column
+            'type'        => $validated['type'],
             'is_active'   => $validated['is_active'] ?? true,
             'settings'    => $validated['settings'] ?? null,
         ]);

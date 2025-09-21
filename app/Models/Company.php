@@ -65,6 +65,22 @@ class Company extends Model
     }
 
     /**
+     * Get funnel tags for the company.
+     */
+    public function tags(): HasMany
+    {
+        return $this->hasMany(Tag::class);
+    }
+
+    /**
+     * Get n8n integrations for the company.
+     */
+    public function n8nIntegrations(): HasMany
+    {
+        return $this->hasMany(N8nIntegration::class);
+    }
+
+    /**
      * Scope a query to only include active companies.
      */
     public function scopeActive($query)

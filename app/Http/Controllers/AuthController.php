@@ -42,8 +42,8 @@ class AuthController extends Controller
             ->where('is_active', true)
             ->get()
             ->map(function ($funnel) {
-                // Add random leads count (for now)
-                $funnel->nleads = rand(10, 200);
+                // Replace random leads count with actual total leads count
+                $funnel->nleads = $funnel->totalLeadsCount();
                 return $funnel;
             });
 
@@ -84,14 +84,18 @@ class AuthController extends Controller
             'token_type'   => 'Bearer',
         ]);
     }
-
     /**
      * Get current user
      */
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+
+        $user->setAttribute('company_name', $user->company ? $user->company->name : null);
+
+        return response()->json($user);
     }
+
 
     /**
      * Update user profile
