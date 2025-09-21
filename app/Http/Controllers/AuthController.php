@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
@@ -36,6 +38,8 @@ class AuthController extends Controller
         $user->updateLastLogin();
 
         $token = $user->createToken('auth_token')->plainTextToken;
+
+        $user->setAttribute('company_name', $user->company ? $user->company->name : null);
 
         // Fetch funnels related to the user's company
         $funnels = Funnel::where('company_id', $user->company_id)
@@ -98,24 +102,87 @@ class AuthController extends Controller
 
 
     /**
-     * Update user profile
+     * Update user profile (name, phone, profile_pic, bg_pic)
      */
     public function updateProfile(Request $request)
     {
         $user = $request->user();
 
-        $validated = $request->validate(User::updateValidationRules($user->id));
-
-        // if password is not provided, remove it from update
-        if (empty($validated['password'])) {
-            unset($validated['password']);
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $user->update($validated);
+        $data = $request->validate([
+            'name'        => 'sometimes|string|max:255',
+            'phone'       => 'sometimes|string|max:20',
+            'profile_pic' => 'sometimes|nullable|file|image|max:2048', // max 2MB
+            'bg_pic'      => 'sometimes|nullable|file|image|max:4096', // max 4MB
+        ]);
+
+        // Handle profile_pic upload
+        if ($request->hasFile('profile_pic')) {
+            // Delete old profile pic if exists
+            if ($user->profile_pic && Storage::disk('public')->exists($user->profile_pic)) {
+                Storage::disk('public')->delete($user->profile_pic);
+            }
+
+            $path = $request->file('profile_pic')->store('profile_pics', 'public');
+            $data['profile_pic'] = $path;
+        }
+
+        // Handle bg_pic upload
+        if ($request->hasFile('bg_pic')) {
+            // Delete old background pic if exists
+            if ($user->bg_pic && Storage::disk('public')->exists($user->bg_pic)) {
+                Storage::disk('public')->delete($user->bg_pic);
+            }
+
+            $path = $request->file('bg_pic')->store('bg_pics', 'public');
+            $data['bg_pic'] = $path;
+        }
+
+        $user->update($data);
+
+        // Convert paths to URLs for frontend
+        $user->profile_pic_url = $user->profile_pic ? Storage::url($user->profile_pic) : null;
+        $user->bg_pic_url = $user->bg_pic ? Storage::url($user->bg_pic) : null;
 
         return response()->json([
-            'message' => 'Profile updated successfully',
-            'user'    => $user,
+            'message' => 'Profile updated successfully.',
+            'user'    => $user
         ]);
     }
+
+        /**
+     * Reset password (requires old password + new password)
+     */
+    public function resetPassword(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $request->validate([
+            'old_password' => 'required|string',
+            'new_password' => 'required|string|min:8|confirmed', 
+            // requires new_password_confirmation field in request
+        ]);
+
+        if (!Hash::check($request->old_password, $user->password)) {
+            throw ValidationException::withMessages([
+                'old_password' => ['The provided password does not match our records.'],
+            ]);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->new_password),
+        ]);
+
+        return response()->json([
+            'message' => 'Password updated successfully.'
+        ]);
+    }
+
 }

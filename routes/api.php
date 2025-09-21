@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\FunnelController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\IntegrationController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\N8nAgentController;
 use App\Http\Controllers\N8nIntegrationController;
 use App\Http\Controllers\StageController;
 use App\Http\Controllers\TagController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -55,6 +57,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tags', [TagController::class, 'store']);
     Route::delete('/tags/{id}', [TagController::class, 'destroy']);
 
+    Route::get('/tokens', [ApiTokenController::class, 'index']);
+    Route::post('/tokens', [ApiTokenController::class, 'generate']);
+    Route::delete('/tokens/{id}', [ApiTokenController::class, 'destroy']);
+
     Route::get('/companies/{companyId}/transactions', [LeadTransactionController::class, 'transactionsByCompany']);
     Route::get('/leads/{leadId}/transactions', [LeadTransactionController::class, 'transactionsByLead']);
 
@@ -68,4 +74,15 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::get('/integrations/agents/n8n', [N8nAgentController::class, 'index']);
     Route::get('/integrations/agents/n8n/executions/{agent}', [N8nAgentController::class, 'fetchExecutions']);
+});
+
+Route::middleware('verify.api.token')->prefix('v1')->group(function () {
+    Route::get('/protected', function(Request $request) {
+        return response()->json([
+            'message' => 'Access granted',
+            'company' => $request->company
+        ]);
+    });
+
+    Route::post('/leads', [LeadController::class, 'apiStore']);
 });

@@ -151,27 +151,8 @@ class User extends Authenticatable
     public static function validationRules(): array
     {
         return [
-            'company_id' => 'required|exists:companies,id',
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
-            'password' => 'required|string|min:8|confirmed',
-            'phone' => 'nullable|string|max:20',
-            'role' => 'required|in:admin,manager,agent',
-            'is_active' => 'boolean',
-            'settings' => 'nullable|array',
-        ];
-    }
-
-    /**
-     * Validation rules for user update.
-     */
-    public static function updateValidationRules($id): array
-    {
-        return [
-            'company_id' => 'required|exists:companies,id',
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $id,
-            'password' => 'nullable|string|min:8|confirmed',
             'phone' => 'nullable|string|max:20',
             'role' => 'required|in:admin,manager,agent',
             'is_active' => 'boolean',

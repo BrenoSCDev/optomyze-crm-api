@@ -126,4 +126,76 @@ class LeadController extends Controller
             'lead' => $lead
         ], 200);
     }
+
+    //////////////////// INTERNAL CRM API METHODS //////////////////////////
+
+    /**
+     * Store a newly created lead via API token authentication.
+     */
+    public function apiStore(Request $request)
+    {
+        // Validate only personal lead data + funnel_id
+        $validated = $request->validate([
+            'funnel_id' => 'required|exists:funnels,id',
+            'assigned_to' => 'nullable|exists:users,id',
+            'external_id' => 'nullable|string|max:255',
+            'source_platform' => 'nullable|string|max:50',
+            'source_type' => 'nullable|string|max:50',
+            'workflow_id' => 'nullable|string|max:255',
+            'automation_name' => 'nullable|string|max:255',
+            'first_name' => 'nullable|string|max:100',
+            'last_name' => 'nullable|string|max:100',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:20',
+            'ddi' => 'nullable|string|max:20',
+            'username' => 'nullable|string|max:100',
+            'platform_user_id' => 'nullable|string|max:255',
+            'status' => 'nullable|in:new,contacted,qualified,unqualified,converted,lost',
+            'priority' => 'nullable|in:low,medium,high,urgent',
+            'estimated_value' => 'nullable|numeric|min:0',
+            'currency' => 'nullable|string|size:3',
+            'contact_methods' => 'nullable|array',
+            'preferred_contact_method' => 'nullable|string|max:50',
+            'timezone' => 'nullable|string|max:50',
+            'language' => 'nullable|string|max:5',
+            'ai_data' => 'nullable|array',
+            'platform_data' => 'nullable|array',
+            'initial_message' => 'nullable|string',
+            'ai_score' => 'nullable|numeric|between:0,100',
+            'tags' => 'nullable|array',
+            'custom_fields' => 'nullable|array',
+            'settings' => 'nullable|array',
+            'notes' => 'nullable|string',
+            'webhook_data' => 'nullable|array',
+            'webhook_source' => 'nullable|string|max:100',
+            'sync_enabled' => 'boolean',
+        ]);
+
+        $company = $request->get('company');
+        if (!$company) {
+            return response()->json(['message' => 'Unauthorized: no company found for token'], 401);
+        }
+
+        $funnel = \App\Models\Funnel::findOrFail($validated['funnel_id']);
+        $stage = $funnel->stages()->where('type', 'entry')->first();
+
+        if (!$stage) {
+            return response()->json([
+                'message' => 'No entry stage found for this funnel'
+            ], 422);
+        }
+
+        $leadData = array_merge($validated, [
+            'company_id' => $company->id,
+            'stage_id' => $stage->id,
+        ]);
+
+        $lead = Lead::create($leadData);
+
+        return response()->json([
+            'message' => 'Lead created successfully',
+            'data' => $lead
+        ], 201);
+    }
+
 }
