@@ -101,14 +101,16 @@ class FunnelController extends Controller
         $user = Auth::user();
 
         $funnel = Funnel::with([
-            'stages.activeLeads'
+            'stages.activeLeads' => function ($query) {
+                $query->orderBy('created_at', 'desc');
+            }
         ])->findOrFail($id);
 
         $tags = Tag::fromCompany($user->company_id)->get();
 
         return response()->json([
             'funnel' => $funnel,
-            'tags' => $tags,
+            'tags'   => $tags,
         ]);
     }
 }

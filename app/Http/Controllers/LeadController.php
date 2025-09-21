@@ -185,6 +185,21 @@ class LeadController extends Controller
             ], 422);
         }
 
+        // 🔍 Check if lead already exists in this company
+        $existingLead = Lead::where('company_id', $company->id)
+            ->where('first_name', $validated['first_name'] ?? null)
+            ->where('last_name', $validated['last_name'] ?? null)
+            ->where('email', $validated['email'] ?? null)
+            ->where('phone', $validated['phone'] ?? null)
+            ->first();
+
+        if ($existingLead) {
+            return response()->json([
+                'message' => 'Duplicate lead detected',
+                'data' => $existingLead
+            ], 200); // returning 200 since it's not really an error
+        }
+
         $leadData = array_merge($validated, [
             'company_id' => $company->id,
             'stage_id' => $stage->id,
