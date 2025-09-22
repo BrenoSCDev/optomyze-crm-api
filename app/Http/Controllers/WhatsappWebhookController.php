@@ -5,49 +5,50 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\WhatsappMessage;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class WhatsappWebhookController extends Controller
 {
-public function handle(Request $request)
+    public function handle(Request $request)
     {
-        // Evolution envia um ARRAY de objetos
         $payload = $request->all();
 
-        if (!is_array($payload) || !isset($payload[0]['body']['data'])) {
-            return response()->json(['message' => 'Invalid payload'], 400);
+        // Log para depuração
+        Log::info('Webhook recebido Evolution', $payload);
+
+        // Se o payload for vazio → erro no parse
+        if (empty($payload)) {
+            return response()->json(['message' => 'Empty payload'], 200);
         }
 
-        $data = $payload[0]['body']['data'];
+        // O Evolution manda um array
+        $body = $payload[0]['body'] ?? null;
 
-        // Extrair informações da mensagem
-        $messageId   = $data['key']['id'] ?? null;
-        $from        = $data['key']['remoteJid'] ?? null;
-        $fromMe      = $data['key']['fromMe'] ?? false;
-        $sender      = $payload[0]['body']['sender'] ?? null;
-        $to          = $fromMe ? ($sender ?? null) : null; // opcional
-        $text        = $data['message']['conversation'] ?? null;
-        $status      = $data['status'] ?? null;
-        $timestamp   = $data['messageTimestamp'] ?? null;
+        if (!$body || !isset($body['data'])) {
+            return response()->json(['message' => 'Payload without data'], 200);
+        }
 
-        $whatsappMessage = WhatsappMessage::updateOrCreate(
+        $data = $body['data'];
+
+        $messageId = $data['key']['id'] ?? null;
+        $text      = $data['message']['conversation'] ?? null;
+
+        \App\Models\WhatsappMessage::updateOrCreate(
             ['message_id' => $messageId],
             [
-                'from'       => $from,
-                'to'         => $to,
+                'from'       => $data['key']['remoteJid'] ?? null,
+                'to'         => $body['sender'] ?? null,
                 'message'    => $text,
-                'direction'  => $fromMe ? 'outbound' : 'inbound',
-                'status'     => $status,
-                'timestamp'  => $timestamp 
-                                ? Carbon::createFromTimestamp($timestamp) 
-                                : now(),
+                'direction'  => ($data['key']['fromMe'] ?? false) ? 'outbound' : 'inbound',
+                'status'     => $data['status'] ?? null,
+                'timestamp'  => isset($data['messageTimestamp'])
+                    ? \Carbon\Carbon::createFromTimestamp($data['messageTimestamp'])
+                    : now(),
                 'raw_payload'=> $data,
             ]
         );
 
-        return response()->json([
-            'message' => 'Message stored successfully',
-            'data'    => $whatsappMessage
-        ]);
+        return response()->json(['message' => 'Message stored']);
     }
 
     public function get()
