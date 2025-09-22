@@ -11,6 +11,7 @@ use App\Http\Controllers\N8nAgentController;
 use App\Http\Controllers\N8nIntegrationController;
 use App\Http\Controllers\StageController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\WhatsappWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,9 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::post('auth/login', [AuthController::class, 'login']);
+
+Route::get('/webhook/whatsapp', [WhatsappWebhookController::class, 'get']);
+Route::post('/webhook/whatsapp', [WhatsappWebhookController::class, 'handle']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
