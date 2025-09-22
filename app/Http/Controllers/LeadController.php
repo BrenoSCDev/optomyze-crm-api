@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lead;
+use App\Models\LeadTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -38,7 +39,16 @@ class LeadController extends Controller
     {
         $validated = $request->validate(Lead::validationRules());
 
+        // Create the lead
         $lead = Lead::create($validated);
+
+        // Create a lead creation transaction
+        LeadTransaction::createLeadCreation(
+            $lead,
+            Auth::user(), // current authenticated user (can be null if API token or automated)
+            LeadTransaction::SOURCE_MANUAL, // or another source if you want
+            [] // optional metadata array
+        );
 
         return response()->json([
             'message' => 'Lead created successfully',
@@ -51,7 +61,11 @@ class LeadController extends Controller
      */
     public function show(Lead $lead)
     {
-        return response()->json($lead);
+        $transactions = LeadTransaction::where('lead_id', $lead->id)->get();
+        return response()->json([
+            'lead' => $lead,
+            'transactions' => $transactions
+        ]);
     }
 
     /**
@@ -59,7 +73,7 @@ class LeadController extends Controller
      */
     public function update(Request $request, Lead $lead)
     {
-        $validated = $request->validate(Lead::validationRules());
+        $validated = $request->validate(Lead::updateValidationRules());
 
         $lead->update($validated);
 

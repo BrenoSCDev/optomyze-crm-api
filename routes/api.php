@@ -46,8 +46,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/leads', [LeadController::class, 'index']);
     Route::post('/leads', [LeadController::class, 'store']);
-    Route::get('/leads/{leadId}', [LeadController::class, 'show']);
-    Route::put('/leads/{leadId}', [LeadController::class, 'update']);
+    Route::get('/leads/{lead}', [LeadController::class, 'show']);
+    Route::put('/leads/{lead}', [LeadController::class, 'update']);
     Route::delete('/leads/{stageId}', [LeadController::class, 'destroy']);
     Route::post('/leads/{lead}/move-stage', [LeadController::class, 'moveToStage']);
     Route::put('/leads/{id}/tags', [LeadController::class, 'updateTags']);

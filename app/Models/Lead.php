@@ -593,4 +593,46 @@ class Lead extends Model
             'sync_enabled' => 'boolean',
         ];
     }
+
+    /**
+     * Validation rules for lead update.
+     */
+    public static function updateValidationRules(): array
+    {
+        return [
+            'assigned_to' => 'nullable|exists:users,id',
+            'external_id' => 'nullable|string|max:255',
+            'source_platform' => 'string|max:50',
+            'source_type' => 'string|max:50',
+            'workflow_id' => 'nullable|string|max:255',
+            'automation_name' => 'nullable|string|max:255',
+            'first_name' => 'nullable|string|max:100',
+            'last_name' => 'nullable|string|max:100',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:20',
+            'ddi' => 'nullable|string|max:20',
+            'username' => 'nullable|string|max:100',
+            'platform_user_id' => 'nullable|string|max:255',
+            'status' => 'in:new,contacted,qualified,unqualified,converted,lost',
+            'priority' => 'in:low,medium,high,urgent',
+            'estimated_value' => 'nullable|numeric|min:0',
+            'currency' => 'string|size:3',
+            'contact_methods' => 'nullable|array',
+            'preferred_contact_method' => 'nullable|string|max:50',
+            'timezone' => 'nullable|string|max:50',
+            'language' => 'string|max:5',
+            'ai_data' => 'nullable|array',
+            'conversation_data' => 'nullable|array',
+            'platform_data' => 'nullable|array',
+            'initial_message' => 'nullable|string',
+            'ai_score' => 'nullable|numeric|between:0,100',
+            'tags' => 'nullable|array',
+            'custom_fields' => 'nullable|array',
+            'settings' => 'nullable|array',
+            'notes' => 'nullable|string',
+            'webhook_data' => 'nullable|array',
+            'webhook_source' => 'nullable|string|max:100',
+            'sync_enabled' => 'boolean',
+        ];
+    }
 }
