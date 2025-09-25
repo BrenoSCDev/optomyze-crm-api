@@ -200,9 +200,7 @@ class Stage extends Model
         return [
             'name' => 'required|string|max:100',
             'description' => 'nullable|string|max:1000',
-            'order' => 'required|integer|min:1',
             'type' => 'required|in:entry,normal,service,proposition,qualified,conversion,lost',
-            'is_active' => 'boolean',
             'settings' => 'nullable|array',
             'settings.sla_hours' => 'nullable|integer|min:1',
             'settings.auto_assign' => 'nullable|boolean',
@@ -219,14 +217,8 @@ class Stage extends Model
         return [
             'name' => 'string|max:100',
             'description' => 'nullable|string|max:1000',
-            'order' => 'integer|min:1',
             'type' => 'in:entry,normal,service,proposition,qualified,conversion,lost',
             'is_active' => 'boolean',
-            'settings' => 'nullable|array',
-            'settings.sla_hours' => 'nullable|integer|min:1',
-            'settings.auto_assign' => 'nullable|boolean',
-            'settings.notifications_enabled' => 'nullable|boolean',
-            'settings.required_fields' => 'nullable|array',
         ];
     }
 

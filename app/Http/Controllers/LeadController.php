@@ -101,21 +101,15 @@ class LeadController extends Controller
     public function moveToStage(Request $request, Lead $lead)
     {
         $validated = $request->validate([
-            'stage_id' => 'required|integer|exists:stages,id',
+            'stage_id' => 'required|exists:stages,id',
         ]);
 
-        $success = $lead->moveToStage($validated['stage_id']);
-
-        if ($success) {
-            return response()->json([
-                'message' => 'Lead moved successfully',
-                'data' => $lead->fresh()
-            ]);
-        }
+        $lead->moveToStage($validated['stage_id']);
 
         return response()->json([
-            'message' => 'Invalid stage for this lead\'s funnel'
-        ], 422);
+            'message' => 'Lead moved successfully',
+            'data' => $lead->fresh()
+        ]);
     }
 
     /**

@@ -34,11 +34,14 @@ class StageController extends Controller
 
         $validated = $request->validate(Stage::validationRules());
 
+        // Find the current max order in this funnel
+        $maxOrder = $funnel->stages()->max('order') ?? 0;
+
         $stage = Stage::create([
             'funnel_id'   => $funnel->id,
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'order'       => $validated['order'] ?? null,
+            'order'       => $maxOrder + 1, // always the last
             'type'        => $validated['type'],
             'is_active'   => $validated['is_active'] ?? true,
             'settings'    => $validated['settings'] ?? null,
@@ -46,6 +49,7 @@ class StageController extends Controller
 
         return response()->json($stage, 201);
     }
+
 
     /**
      * Show a single stage.
@@ -93,5 +97,37 @@ class StageController extends Controller
         $stage->delete();
 
         return response()->json(['message' => 'Stage deleted successfully']);
+    }
+
+    /**
+     * Move a stage to a new order within its funnel.
+     */
+    public function moveOrder(Request $request, $funnelId, $stageId)
+    {
+        $user = Auth::user();
+
+        $stage = Stage::fromCompany($user->company_id)
+            ->where('funnel_id', $funnelId)
+            ->findOrFail($stageId);
+
+        $validated = $request->validate([
+            'order' => 'required|integer|min:1',
+        ]);
+
+        $success = $stage->moveToOrder($validated['order']);
+
+        if (!$success) {
+            return response()->json([
+                'message' => 'Invalid order position'
+            ], 422);
+        }
+
+        // Return updated list of ordered stages
+        $stages = $stage->funnel->stages()->ordered()->get();
+
+        return response()->json([
+            'message' => 'Stage reordered successfully',
+            'stages' => $stages,
+        ]);
     }
 }

@@ -31,6 +31,8 @@ Route::post('auth/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
+    Route::post('auth/update', [AuthController::class, 'updateProfile']);
+    Route::post('auth/reset/password', [AuthController::class, 'resetPassword']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
 
     Route::get('/funnels', [FunnelController::class, 'index']);
@@ -44,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/funnels/{funnelId}/stages/{stageId}', [StageController::class, 'show']);
     Route::put('/funnels/{funnelId}/stages/{stageId}', [StageController::class, 'update']);
     Route::delete('/funnels/{funnelId}/stages/{stageId}', [StageController::class, 'destroy']);
+    Route::put('/funnels/{funnelId}/stages/{stageId}/move', [StageController::class, 'moveOrder']);
 
     Route::get('/leads', [LeadController::class, 'index']);
     Route::post('/leads', [LeadController::class, 'store']);
