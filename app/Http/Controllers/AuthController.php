@@ -127,7 +127,8 @@ class AuthController extends Controller
             }
 
             $path = $request->file('profile_pic')->store('profile_pics', 'public');
-            $data['profile_pic'] = $path;
+            
+            $user->profile_pic = $path;
         }
 
         // Handle bg_pic upload
@@ -137,15 +138,12 @@ class AuthController extends Controller
                 Storage::disk('public')->delete($user->bg_pic);
             }
 
-            $path = $request->file('bg_pic')->store('bg_pics', 'public');
-            $data['bg_pic'] = $path;
+            $bg_path = $request->file('bg_pic')->store('bg_pics', 'public');
+
+            $user->bg_pic = $bg_path;
         }
 
         $user->update($data);
-
-        // Convert paths to URLs for frontend
-        $user->profile_pic_url = $user->profile_pic ? Storage::url($user->profile_pic) : null;
-        $user->bg_pic_url = $user->bg_pic ? Storage::url($user->bg_pic) : null;
 
         return response()->json([
             'message' => 'Profile updated successfully.',
@@ -153,7 +151,7 @@ class AuthController extends Controller
         ]);
     }
 
-        /**
+    /**
      * Reset password (requires old password + new password)
      */
     public function resetPassword(Request $request)
