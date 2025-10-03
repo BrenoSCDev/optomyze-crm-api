@@ -157,6 +157,7 @@ class User extends Authenticatable
             'role' => 'required|in:admin,manager,agent',
             'is_active' => 'boolean',
             'settings' => 'nullable|array',
+            'company_id' => 'required|exists:companies,id',
         ];
     }
 }

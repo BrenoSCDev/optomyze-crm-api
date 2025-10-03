@@ -46,7 +46,6 @@ class AuthController extends Controller
             ->where('is_active', true)
             ->get()
             ->map(function ($funnel) {
-                // Replace random leads count with actual total leads count
                 $funnel->nleads = $funnel->totalLeadsCount();
                 return $funnel;
             });

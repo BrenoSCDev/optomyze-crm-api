@@ -19,7 +19,9 @@ class N8nAgentController extends Controller
         $user = Auth::user();
 
         // Assuming user has company_id column
-        $agents = N8nAgent::where('company_id', $user->company_id)->get();
+        $agents = N8nAgent::where('company_id', $user->company_id)
+            ->with('reports')
+            ->get();
 
         return response()->json([
             'data' => $agents

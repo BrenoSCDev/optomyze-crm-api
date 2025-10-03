@@ -18,7 +18,12 @@ class StageController extends Controller
 
         $funnel = Funnel::fromCompany($user->company_id)->findOrFail($funnelId);
 
-        $stages = $funnel->stages()->ordered()->get();
+        $stages = $funnel->stages()->ordered()
+        ->get()
+        ->map(function ($stage) {
+            $stage->nleads = $stage->countLeads();
+            return $stage;
+        });
 
         return response()->json($stages);
     }

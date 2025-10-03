@@ -28,22 +28,9 @@ class StagesSeeder extends Seeder
                 ],
             ],
             [
-                'name' => 'Initial Contact',
-                'description' => 'Sales team has contacted the lead.',
-                'order' => 2,
-                'type' => 'normal',
-                'is_active' => true,
-                'settings' => [
-                    'sla_hours' => 48,
-                    'auto_assign' => false,
-                    'notifications_enabled' => true,
-                    'required_fields' => ['email'],
-                ],
-            ],
-            [
                 'name' => 'Demo Scheduled',
                 'description' => 'The client has scheduled a demo with our team.',
-                'order' => 3,
+                'order' => 2,
                 'type' => 'service',
                 'is_active' => true,
                 'settings' => [
@@ -55,7 +42,7 @@ class StagesSeeder extends Seeder
             [
                 'name' => 'Proposal Sent',
                 'description' => 'A commercial proposal was sent to the client.',
-                'order' => 4,
+                'order' => 3,
                 'type' => 'proposition',
                 'is_active' => true,
                 'settings' => [
@@ -65,21 +52,9 @@ class StagesSeeder extends Seeder
                 ],
             ],
             [
-                'name' => 'Decision Maker Engaged',
-                'description' => 'The lead is qualified and in negotiation.',
-                'order' => 5,
-                'type' => 'qualified',
-                'is_active' => true,
-                'settings' => [
-                    'sla_hours' => 96,
-                    'auto_assign' => true,
-                    'notifications_enabled' => true,
-                ],
-            ],
-            [
                 'name' => 'Deal Closed - Won',
                 'description' => 'Client has signed the contract and is onboarded.',
-                'order' => 6,
+                'order' => 4,
                 'type' => 'conversion',
                 'is_active' => true,
                 'settings' => [
@@ -89,7 +64,7 @@ class StagesSeeder extends Seeder
             [
                 'name' => 'Deal Lost',
                 'description' => 'Lead was disqualified or rejected the offer.',
-                'order' => 7,
+                'order' => 5,
                 'type' => 'lost',
                 'is_active' => false,
                 'settings' => [

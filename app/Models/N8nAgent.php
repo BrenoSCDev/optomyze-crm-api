@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class N8nAgent extends Model
 {
@@ -61,6 +62,14 @@ class N8nAgent extends Model
     {
         return $this->belongsTo(Company::class, 'company_id')
                     ->through('n8nIntegration');
+    }
+
+    /**
+     * Return conversation reports
+     */
+    public function reports(): HasMany
+    {
+        return $this->hasMany(ConversationReport::class);
     }
 
     /**

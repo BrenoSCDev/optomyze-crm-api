@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\FunnelController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ConversationReportController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadTransactionController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\N8nAgentController;
 use App\Http\Controllers\N8nIntegrationController;
 use App\Http\Controllers\StageController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\WhatsappWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +36,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('auth/update', [AuthController::class, 'updateProfile']);
     Route::post('auth/reset/password', [AuthController::class, 'resetPassword']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
+
+    Route::get('/users', [UserController::class, 'index']);
+    Route::post('/users', [UserController::class, 'store']);
+    Route::put('/users/{id}', [UserController::class, 'update']);
+    Route::patch('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
     Route::get('/funnels', [FunnelController::class, 'index']);
     Route::post('/funnels', [FunnelController::class, 'store']);
@@ -78,6 +86,10 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::get('/integrations/agents/n8n', [N8nAgentController::class, 'index']);
     Route::get('/integrations/agents/n8n/executions/{agent}', [N8nAgentController::class, 'fetchExecutions']);
+
+    Route::post('/conversation-reports', [ConversationReportController::class, 'store']);
+    Route::get('/conversation-reports/lead/{leadId}', [ConversationReportController::class, 'getByLead']);
+    Route::get('/conversation-reports/agent/{agentId}', [ConversationReportController::class, 'getByAgent']);
 });
 
 Route::middleware('verify.api.token')->prefix('v1')->group(function () {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ConversationReport;
 use App\Models\Lead;
 use App\Models\LeadTransaction;
 use Illuminate\Http\Request;
@@ -62,9 +63,11 @@ class LeadController extends Controller
     public function show(Lead $lead)
     {
         $transactions = LeadTransaction::where('lead_id', $lead->id)->get();
+        $reports = ConversationReport::where('lead_id', $lead->id)->with('agent')->get();
         return response()->json([
             'lead' => $lead,
-            'transactions' => $transactions
+            'transactions' => $transactions,
+            'reports' => $reports,
         ]);
     }
 

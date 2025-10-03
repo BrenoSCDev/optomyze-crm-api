@@ -18,7 +18,12 @@ class FunnelController extends Controller
     {
         $user = Auth::user();
 
-        $funnels = Funnel::fromCompany($user->company_id)->get();
+    $funnels = Funnel::fromCompany($user->company_id)
+        ->get() // get results first
+        ->map(function ($funnel) {
+            $funnel->nleads = $funnel->totalLeadsCount();
+            return $funnel;
+        });
 
         return response()->json($funnels);
     }
@@ -74,7 +79,6 @@ class FunnelController extends Controller
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
             'is_active'   => 'boolean',
-            'settings'    => 'nullable|array',
         ]);
 
         $funnel->update($validated);
@@ -101,10 +105,14 @@ class FunnelController extends Controller
         $user = Auth::user();
 
         $funnel = Funnel::with([
-            'stages.activeLeads' => function ($query) {
-                $query->orderBy('created_at', 'desc');
+            'stages' => function ($query) {
+                $query->where('is_active', true)
+                    ->with(['activeLeads' => function ($query) {
+                        $query->orderBy('created_at', 'desc');
+                    }]);
             }
         ])->findOrFail($id);
+
 
         $tags = Tag::fromCompany($user->company_id)->get();
 
