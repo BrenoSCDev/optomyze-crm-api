@@ -7,13 +7,13 @@ use App\Http\Controllers\ConversationReportController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadTransactionController;
+use App\Http\Controllers\MetaAdsIntegrationController;
 use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\N8nAgentController;
 use App\Http\Controllers\N8nIntegrationController;
 use App\Http\Controllers\StageController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\WhatsappWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -79,10 +79,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/metrics/leads-breakdown', [MetricsController::class, 'dashboard']);
 
     Route::get('/integrations/available', [IntegrationController::class, 'available']);
+
     Route::post('/integrations/n8n-integrations', [N8nIntegrationController::class, 'createIntegration']);
     Route::put('/integrations/n8n-integrations/configure', [N8nIntegrationController::class, 'configure']);
     Route::get('/integrations/n8n-integrations/data', [N8nIntegrationController::class, 'configureData']);
     Route::get('/integrations/n8n/workflows', [N8nIntegrationController::class, 'fetchWorkflows']);
+
+    Route::post('/integrations/meta-ads', [MetaAdsIntegrationController::class, 'createIntegration']);
+    Route::put('/integrations/meta-ads/configure', [MetaAdsIntegrationController::class, 'configure']);
+    Route::get('/integrations/meta-ads/fetch-meta-data', [MetaAdsIntegrationController::class, 'fetchMetaData']);
     
     Route::get('/integrations/agents/n8n', [N8nAgentController::class, 'index']);
     Route::get('/integrations/agents/n8n/executions/{agent}', [N8nAgentController::class, 'fetchExecutions']);
