@@ -21,7 +21,7 @@ class StageController extends Controller
         $stages = $funnel->stages()->ordered()
         ->get()
         ->map(function ($stage) {
-            $stage->nleads = $stage->countLeads();
+            $stage->nleads = $stage->leads->count();
             return $stage;
         });
 

@@ -8,8 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
@@ -153,7 +158,7 @@ class AuthController extends Controller
     /**
      * Reset password (requires old password + new password)
      */
-    public function resetPassword(Request $request)
+    public function resetPasswordAuth(Request $request)
     {
         $user = $request->user();
 
@@ -182,4 +187,133 @@ class AuthController extends Controller
         ]);
     }
 
+    public function forgotPassword(Request $request)
+    {
+        // 1. Validate the request
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $email = $request->email;
+        $user = User::where('email', $request->email)->get();
+
+        // 2. Generate a secure random token
+        $token = Str::random(64);
+        
+        // 3. Store token in password_reset_tokens table with expiration
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $email],
+            [
+                'token' => Hash::make($token),
+                'created_at' => now(),
+            ]
+        );
+
+        // 4. Prepare the reset link/token for the webhook
+        $resetUrl = 'http://localhost:8080' . '/reset-password?token=' . $token . '&email=' . urlencode($email);    
+        
+        $url = "https://optomyze-n8n.kmfrpu.easypanel.host/webhook/7f48b411-f289-4d5e-b05c-8a012a48e2db";
+
+        // Build request body with token information
+        $body = [
+            'email' => $email,
+            'user' => $user,
+            'token' => $token,
+            'reset_url' => $resetUrl,
+            'expires_at' => now()->addHour()->toDateTimeString(),
+        ];
+
+        try {
+            // 5. Send POST request to webhook
+            $response = Http::timeout(10)->post($url, $body);
+
+            if ($response->failed()) {
+                return response()->json([
+                    'message' => 'Failed to send password reset email.',
+                    'error' => $response->body(),
+                ], 500);
+            }
+
+            return response()->json([
+                'message' => 'Password reset email sent successfully. Please check your inbox.',
+                'data' => [
+                    'email' => $email,
+                    'expires_in' => '1 hour',
+                ],
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error sending password reset email.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function resetPassword(Request $request)
+    {
+        // 1. Validate the request
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|exists:users,email',
+            'token' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        // 2. Retrieve the password reset record
+        $resetRecord = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$resetRecord) {
+            return response()->json([
+                'message' => 'Invalid or expired reset token.',
+            ], 404);
+        }
+
+        $tokenAge = Carbon::parse($resetRecord->created_at);
+        if ($tokenAge->addHour()->isPast()) {
+            // Delete expired token
+            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+            
+            return response()->json([
+                'message' => 'Password reset token has expired. Please request a new one.',
+            ], 410);
+        }
+
+        // 4. Verify the token
+        if (!Hash::check($request->token, $resetRecord->token)) {
+            return response()->json([
+                'message' => 'Invalid reset token.',
+            ], 401);
+        }
+
+        // 5. Update the user's password
+        $user = User::where('email', $request->email)->first();
+        $user->password = $request->password;
+        $user->save();
+
+        // 6. Delete the used token
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        // 7. Optional: Revoke all user tokens if using Sanctum/Passport
+        // $user->tokens()->delete();
+
+        return response()->json([
+            'message' => 'Password has been reset successfully.',
+        ], 200);
+    }
 }

@@ -56,11 +56,6 @@ return new class extends Migration
             $table->json('tags')->nullable(); // Tags from AI analysis
             
             // Tracking and attribution
-            $table->string('utm_source')->nullable();
-            $table->string('utm_medium')->nullable();
-            $table->string('utm_campaign')->nullable();
-            $table->string('utm_term')->nullable();
-            $table->string('utm_content')->nullable();
             $table->string('referrer')->nullable();
             $table->ipAddress('ip_address')->nullable();
             $table->text('user_agent')->nullable();
@@ -75,12 +70,7 @@ return new class extends Migration
             $table->boolean('is_qualified')->nullable(); // null = not assessed, true = qualified, false = unqualified
             $table->timestamp('qualified_at')->nullable();
             $table->foreignId('qualified_by')->nullable()->constrained('users')->onDelete('set null');
-            
-            // Webhook and sync data
-            $table->json('webhook_data')->nullable(); // Raw webhook payload
-            $table->string('webhook_source')->nullable(); // Source of the webhook
-            $table->timestamp('last_sync_at')->nullable(); // Last sync with external platform
-            $table->boolean('sync_enabled')->default(true);
+        
             
             $table->timestamps();
             $table->softDeletes();

@@ -20,7 +20,7 @@ class UserSeeder extends Seeder
     {
         DB::table('users')->insert([
             'name' => 'Breno Castro',
-            'email' => 'admin@optomyze.io',
+            'email' => 'ceo@optomyze.io',
             'password' => Hash::make('password'),
             'phone' => '+1-555-1111',
             'role' => 'admin',

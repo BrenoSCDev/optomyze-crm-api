@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -33,9 +34,12 @@ class UserController extends Controller
 
         $validated = $request->validate(User::validationRules());
 
-        $validated['password'] = \Illuminate\Support\Facades\Hash::make('ChangeMe123!');
+        $validated['password'] = 'changeme';
 
         $user = User::create($validated);
+
+        // dd($user->password);
+
 
         return response()->json($user, 201);
     }

@@ -4,6 +4,7 @@ use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\FunnelController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ConversationReportController;
+use App\Http\Controllers\GoogleAdsIntegrationController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadTransactionController;
@@ -29,13 +30,16 @@ use Illuminate\Support\Facades\Route;
 */
 
 
-Route::post('auth/login', [AuthController::class, 'login']);
+Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/forgot-pwd', [AuthController::class, 'forgotPassword']);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('auth/me', [AuthController::class, 'me']);
-    Route::post('auth/update', [AuthController::class, 'updateProfile']);
-    Route::post('auth/reset/password', [AuthController::class, 'resetPassword']);
-    Route::post('auth/logout', [AuthController::class, 'logout']);
+    Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::post('/auth/update', [AuthController::class, 'updateProfile']);
+    Route::post('/auth/reset/password', [AuthController::class, 'resetPasswordAuth']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
 
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);
@@ -88,6 +92,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/integrations/meta-ads', [MetaAdsIntegrationController::class, 'createIntegration']);
     Route::put('/integrations/meta-ads/configure', [MetaAdsIntegrationController::class, 'configure']);
     Route::get('/integrations/meta-ads/fetch-meta-data', [MetaAdsIntegrationController::class, 'fetchMetaData']);
+
+    Route::post('/integrations/google-ads', [GoogleAdsIntegrationController::class, 'createIntegration']);
+    Route::put('/integrations/google-ads/configure', [GoogleAdsIntegrationController::class, 'configure']);
+    Route::get('/integrations/google-ads/fetch-google-data', [GoogleAdsIntegrationController::class, 'fetchGoogleData']);
     
     Route::get('/integrations/agents/n8n', [N8nAgentController::class, 'index']);
     Route::get('/integrations/agents/n8n/executions/{agent}', [N8nAgentController::class, 'fetchExecutions']);
@@ -106,4 +114,6 @@ Route::middleware('verify.api.token')->prefix('v1')->group(function () {
     });
 
     Route::post('/leads', [LeadController::class, 'apiStore']);
+    
+    Route::post('/conversation-reports', [ConversationReportController::class, 'store']);
 });

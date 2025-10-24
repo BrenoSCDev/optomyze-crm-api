@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GoogleAdsIntegration;
 use App\Models\MetaAdsIntegration;
 use App\Models\N8nIntegration;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class IntegrationController extends Controller
         $integrations = [
             'n8n'      => N8nIntegration::class,
             'meta_ads' => MetaAdsIntegration::class,
-            // 'google_ads' => GoogleAdsIntegration::class,
+            'google_ads' => GoogleAdsIntegration::class,
             // 'hubspot'   => HubspotIntegration::class,
             // adicionar mais aqui
         ];
@@ -36,7 +37,7 @@ class IntegrationController extends Controller
         foreach ($integrations as $key => $model) {
             $availability[$key . '_available'] = $model::where('company_id', $user->company_id)
                 ->active()
-                ->exists(); // apenas checa se existe, mais performático que first()
+                ->exists();
         }
 
         return response()->json($availability, 200);
