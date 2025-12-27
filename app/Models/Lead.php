@@ -405,6 +405,30 @@ class Lead extends Model
     }
 
     /**
+     * Tasks relationship
+     */
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    /**
+     * Tasks relationship
+     */
+    public function reports()
+    {
+        return $this->hasMany(ConversationReport::class);
+    }
+
+    /**
+     * Document relationship
+     */
+    public function docs()
+    {
+        return $this->hasMany(LeadDocument::class);
+    }
+
+    /**
      * Assign lead to a user.
      */
     public function assignTo(int $userId): bool

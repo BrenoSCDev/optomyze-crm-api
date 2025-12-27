@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LeadDocumentController;
 use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\FunnelController;
 use App\Http\Controllers\AuthController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\N8nAgentController;
 use App\Http\Controllers\N8nIntegrationController;
 use App\Http\Controllers\StageController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -103,7 +105,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/conversation-reports', [ConversationReportController::class, 'store']);
     Route::get('/conversation-reports/lead/{leadId}', [ConversationReportController::class, 'getByLead']);
     Route::get('/conversation-reports/agent/{agentId}', [ConversationReportController::class, 'getByAgent']);
+
+    Route::get('/tasks', [TaskController::class, 'companyTasks']);
+    Route::post('/tasks', [TaskController::class, 'store']);       
+    Route::get('/tasks/{task}', [TaskController::class, 'show']);    
+    Route::put('/tasks/{task}', [TaskController::class, 'update']);
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy']); 
+
+    Route::post('/lead-documents', [LeadDocumentController::class, 'store']);
+    Route::delete('/lead-documents/{leadDocument}', [LeadDocumentController::class, 'destroy']);
 });
+
 
 Route::middleware('verify.api.token')->prefix('v1')->group(function () {
     Route::get('/protected', function(Request $request) {

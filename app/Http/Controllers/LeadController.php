@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ConversationReport;
 use App\Models\Lead;
 use App\Models\LeadTransaction;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -62,12 +63,21 @@ class LeadController extends Controller
      */
     public function show(Lead $lead)
     {
-        $transactions = LeadTransaction::where('lead_id', $lead->id)->get();
-        $reports = ConversationReport::where('lead_id', $lead->id)->with('agent')->get();
+        $lead->load([
+            'transactions',
+            'docs',
+            'reports.agent',
+            'tasks.assignee',
+            'tasks.creator',
+        ]);
+
+        $user = Auth::user();
+
+        $users = User::fromCompany($user->company_id)->get();
+
         return response()->json([
             'lead' => $lead,
-            'transactions' => $transactions,
-            'reports' => $reports,
+            'users' => $users
         ]);
     }
 
