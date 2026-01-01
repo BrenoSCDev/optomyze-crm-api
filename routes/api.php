@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\LeadDocumentController;
 use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\FunnelController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ConversationReportController;
+use App\Http\Controllers\CustomProductFieldController;
 use App\Http\Controllers\GoogleAdsIntegrationController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\LeadController;
@@ -13,10 +15,15 @@ use App\Http\Controllers\MetaAdsIntegrationController;
 use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\N8nAgentController;
 use App\Http\Controllers\N8nIntegrationController;
+use App\Http\Controllers\ProductImageController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\StageController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\LeadProductController;
+use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SaleDocController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -69,7 +76,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/leads/{stageId}', [LeadController::class, 'destroy']);
     Route::post('/leads/{lead}/move-stage', [LeadController::class, 'moveToStage']);
     Route::put('/leads/{id}/tags', [LeadController::class, 'updateTags']);
+    Route::post('/leads/{lead}/assign', [LeadController::class, 'assignUser']);
 
+    Route::post('/leads/{lead}/products', [LeadProductController::class, 'store']);
+
+    Route::post('/leads/{lead}/sales', [SaleController::class, 'store']);
+
+    Route::delete('/sales/{sale}', [SaleController::class, 'destroy']);
+
+    Route::post('/sales/{sale}/docs', [SaleDocController::class, 'store']);
+    Route::delete('/sales/docs/{doc}', [SaleDocController::class, 'destroy']);
 
     Route::get('/tags', [TagController::class, 'index']);
     Route::post('/tags', [TagController::class, 'store']);
@@ -114,6 +130,36 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/lead-documents', [LeadDocumentController::class, 'store']);
     Route::delete('/lead-documents/{leadDocument}', [LeadDocumentController::class, 'destroy']);
+
+    Route::apiResource('products', ProductController::class);
+    Route::post('/products/{id}/toggle-active', [ProductController::class, 'toggleActive']);
+
+    Route::prefix('products/{product}')->group(function () {
+        Route::get('images', [ProductImageController::class, 'index']);
+        Route::post('images', [ProductImageController::class, 'store']);
+    });
+
+    Route::put('/product-images/{productImage}', [ProductImageController::class, 'update']);
+    Route::post('/product-images/{productImage}/primary', [ProductImageController::class, 'setPrimary']);
+    Route::post('/product-images/reorder', [ProductImageController::class, 'reorder']);
+    Route::delete('/product-images/{productImage}', [ProductImageController::class, 'destroy']);
+
+    Route::get('/custom-product-fields', [CustomProductFieldController::class, 'index']);
+    Route::get('/custom-product-fields/{customProductField}', [CustomProductFieldController::class, 'show']);
+    Route::post('/custom-product-fields', [CustomProductFieldController::class, 'store']);
+    Route::put('/custom-product-fields/{customProductField}', [CustomProductFieldController::class, 'update']);
+    Route::delete('/custom-product-fields/{customProductField}', [CustomProductFieldController::class, 'destroy']);
+
+    Route::prefix('products/{product}')->group(function () {
+        // Route::get('/custom-fields', [ProductController::class, 'index']);
+        Route::post('/custom-fields', [ProductController::class, 'storeCustomField']);
+        Route::put('/custom-fields/{fieldKey}', [ProductController::class, 'updateCustomField']);
+        Route::delete('/custom-fields/{fieldKey}', [ProductController::class, 'destroyCustomField']);
+    });
+
+
+    Route::get('/settings-panel', [SettingsController::class, 'panel']);
+    
 });
 
 

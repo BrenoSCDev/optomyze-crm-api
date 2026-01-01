@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ConversationReport;
 use App\Models\Lead;
 use App\Models\LeadTransaction;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -64,22 +65,61 @@ class LeadController extends Controller
     public function show(Lead $lead)
     {
         $lead->load([
+            'assignedUser:id,name,email',
             'transactions',
             'docs',
+            'products:id,name,base_price,type,description',
             'reports.agent',
-            'tasks.assignee',
-            'tasks.creator',
+            'tasks.assignee:id,name,email',
+            'tasks.creator:id,name,email',
+
+            // ✅ NEW: sales with all relations
+            'sales' => function ($query) {
+                $query->with([
+                    'user:id,name,email',
+                    'items',
+                    'charges',
+                    'docs',
+                ])->orderBy('created_at', 'desc');
+            },
         ]);
+
+        // Promote pivot fields into product object
+        $lead->products->transform(function ($product) {
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'type' => $product->type,
+                'base_price' => $product->base_price,
+                'quantity' => (int) $product->pivot->quantity,
+                'unit_price' => (float) $product->pivot->unit_price,
+                'total_price' => (float) $product->pivot->total_price,
+                'primary_image' => $product->primaryImage,
+            ];
+        });
 
         $user = Auth::user();
 
-        $users = User::fromCompany($user->company_id)->get();
+        $users = User::fromCompany($user->company_id)
+            ->select('id', 'name', 'email')
+            ->get();
+
+        $products = Product::fromCompany($user->company_id)
+            ->select('id', 'name')
+            ->get();
+
+        // Estimated value from products of interest (not sales)
+        $valueEstimated = $lead->products->sum('total_price');
+        $lead->value_estimated = (float) $valueEstimated;
 
         return response()->json([
             'lead' => $lead,
-            'users' => $users
+            'users' => $users,
+            'products' => $products,
         ]);
     }
+
+
 
     /**
      * Update an existing lead.
@@ -146,6 +186,24 @@ class LeadController extends Controller
             'message' => 'Tags updated successfully.',
             'lead' => $lead
         ], 200);
+    }
+
+    public function assignUser(Request $request, Lead $lead)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $lead->assigned_to = $validated['user_id'];
+        $lead->save();
+
+        return response()->json([
+            'message' => 'User successfully assigned to lead',
+            'data' => [
+                'lead_id' => $lead->id,
+                'assigned_to' => $lead->assigned_to,
+            ],
+        ]);
     }
 
     //////////////////// INTERNAL CRM API METHODS //////////////////////////

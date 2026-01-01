@@ -107,12 +107,50 @@ class FunnelController extends Controller
         $funnel = Funnel::with([
             'stages' => function ($query) {
                 $query->where('is_active', true)
-                    ->with(['activeLeads' => function ($query) {
-                        $query->orderBy('created_at', 'desc');
-                    }]);
+                    ->with([
+                        'activeLeads' => function ($query) {
+                            $query->orderBy('created_at', 'desc')
+                                ->with([
+                                    'assignedUser:id,name',
+                                    'products:id,name,base_price',
+                                ]);
+                        }
+                    ]);
             }
         ])->findOrFail($id);
 
+        // 🔢 Funnel total value
+        $funnelTotal = 0;
+
+        $funnel->stages->transform(function ($stage) use (&$funnelTotal) {
+
+            $stageTotal = 0;
+
+            $stage->activeLeads->transform(function ($lead) use (&$stageTotal, &$funnelTotal) {
+
+                // Lead estimated value
+                $leadValue = $lead->products->sum(function ($product) {
+                    return (float) $product->pivot->total_price;
+                });
+
+                // Attach to lead
+                $lead->value_estimated = $leadValue;
+
+                // Accumulate
+                $stageTotal += $leadValue;
+                $funnelTotal += $leadValue;
+
+                return $lead;
+            });
+
+            // Attach stage total
+            $stage->value_estimated = $stageTotal;
+
+            return $stage;
+        });
+
+        // Attach funnel total
+        $funnel->value_estimated = $funnelTotal;
 
         $tags = Tag::fromCompany($user->company_id)->get();
 

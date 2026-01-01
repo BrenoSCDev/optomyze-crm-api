@@ -165,6 +165,22 @@ class Lead extends Model
     }
 
     /**
+     * Get lead interested products.
+     */
+    public function products()
+    {
+        return $this->belongsToMany(Product::class)
+            ->withPivot('quantity', 'unit_price', 'total_price')
+            ->withTimestamps();
+    }
+
+    public function sales()
+    {
+        return $this->hasMany(Sale::class);
+    }
+
+
+    /**
      * Get the user who qualified this lead.
      */
     public function qualifiedBy(): BelongsTo
