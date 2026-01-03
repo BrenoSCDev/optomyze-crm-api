@@ -9,6 +9,7 @@ use App\Models\WhatsAppEvoIntegration;
 use App\Models\WhatsAppInstance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Funnel;
 
 class IntegrationController extends Controller
 {
@@ -61,14 +62,14 @@ class IntegrationController extends Controller
             'wpp_evo'    => WhatsAppEvoIntegration::class,
         ];
 
-        $availability = [];
+        $data = [];
 
         foreach ($integrations as $key => $model) {
             $isAvailable = $model::where('company_id', $user->company_id)
                 ->active()
                 ->exists();
 
-            $availability[$key . '_available'] = $isAvailable;
+            $data[$key . '_available'] = $isAvailable;
 
             // Special case: WhatsApp Evolution
             if ($key === 'wpp_evo' && $isAvailable) {
@@ -77,7 +78,7 @@ class IntegrationController extends Controller
                     ->active()
                     ->first();
 
-                $availability['wpp_evo_instances'] = WhatsAppInstance::where(
+                $data['wpp_evo_instances'] = WhatsAppInstance::where(
                     'company_id',
                     $user->company_id
                 )
@@ -86,13 +87,26 @@ class IntegrationController extends Controller
                     $integration->id
                 )
                 ->select(
-                    'instance_name', 'id', 'created_at'
+                    'instance_name', 'id', 'created_at', 'funnel_id'
+                )
+                ->with(
+                    'funnel:id,name'
                 )
                 ->get();
             }
         }
 
-        return response()->json($availability, 200);
+        
+        $funnels = Funnel::fromCompany($user->company_id)
+            ->select(
+                'id', 'name'
+            )
+            ->get();
+        $data['funnels'] = $funnels;
+
+        return response()->json(
+            $data, 200
+        );
     }
 
 }

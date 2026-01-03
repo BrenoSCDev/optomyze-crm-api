@@ -200,4 +200,26 @@ class WhatsAppInstanceController extends Controller
         }
     }
 
+    /**
+     * Attach or update funnel for a WhatsApp instance
+     */
+    public function updateFunnel(Request $request, $instanceId)
+    {
+        $data = $request->validate([
+            'funnel_id' => ['nullable', 'exists:funnels,id'],
+        ]);
+
+        $instance = WhatsAppInstance::where('id', $instanceId)
+            ->where('company_id', Auth::user()->company_id)
+            ->firstOrFail();
+
+        $instance->update([
+            'funnel_id' => $data['funnel_id'],
+        ]);
+
+        return response()->json([
+            'message' => 'Funnel linked to WhatsApp instance successfully.',
+            'data' => $instance->fresh(),
+        ]);
+    }
 }

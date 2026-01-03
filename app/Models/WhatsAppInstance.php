@@ -15,6 +15,7 @@ class WhatsAppInstance extends Model
         'status',
         'metadata',
         'connected_at',
+        'funnel_id',
     ];
 
     /**
@@ -23,5 +24,13 @@ class WhatsAppInstance extends Model
     public function whatsappEvoIntegration(): BelongsTo
     {
         return $this->belongsTo(WhatsAppEvoIntegration::class);
+    }
+
+    /**
+     * Get the funnel that owns the instance.
+     */
+    public function funnel(): BelongsTo
+    {
+        return $this->belongsTo(Funnel::class);
     }
 }

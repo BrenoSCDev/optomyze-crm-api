@@ -12,7 +12,7 @@ use Carbon\Carbon;
 
 class Lead extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     /**
      * Lead status constants

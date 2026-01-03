@@ -58,6 +58,14 @@ class Funnel extends Model
     }
 
     /**
+     * Get the instances for this funnel.
+     */
+    public function instances(): HasMany
+    {
+        return $this->hasMany(WhatsAppInstance::class)->orderBy('order');
+    }
+
+    /**
      * Get total leads count across all stages in the funnel.
      */
     public function totalLeadsCount(): int

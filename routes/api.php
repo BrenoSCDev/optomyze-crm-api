@@ -24,6 +24,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\LeadProductController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SaleDocController;
+use App\Http\Controllers\WhatsAppChatController;
 use App\Http\Controllers\WhatsAppEvoIntegrationController;
 use App\Http\Controllers\WhatsAppInstanceController;
 use Illuminate\Http\Request;
@@ -177,6 +178,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/whatsapp-evo-instances/{instanceId}', [WhatsAppInstanceController::class, 'deleteInstance']);
         Route::get('/whatsapp-evo-instances/qrcode/{instanceId}', [WhatsAppInstanceController::class, 'generateQrCode']);
         Route::post('/whatsapp-evo-instances/send-message/{instanceId}', [WhatsAppInstanceController::class, 'sendMessage']);
+        Route::put('/whatsapp-evo-integrations/{instance}/funnel', [WhatsAppInstanceController::class, 'updateFunnel']);
+
+        // WhatsApp Evolution API Chat
+        Route::get('/whatsapp-evo-chat', [WhatsAppChatController::class, 'getCompanyChats']);
+        Route::post('/whatsapp-evo-chat/message/{instanceId}', [WhatsAppChatController::class, 'sendMessageToLead']);
+        
     });
 
 
@@ -240,6 +247,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/custom-product-fields/{customProductField}', [CustomProductFieldController::class, 'destroy']);
 
 
+
     /*
     |--------------------------------------------------------------------------
     | Settings Routes
@@ -263,3 +271,6 @@ Route::middleware('verify.api.token')->prefix('v1')->group(function () {
     
     Route::post('/conversation-reports', [ConversationReportController::class, 'store']);
 });
+
+// WhatsApp Evolution API Chat
+Route::post('/whatsapp-evo-chat', [WhatsAppChatController::class, 'handleEvolutionWebhook']);

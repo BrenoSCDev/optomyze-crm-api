@@ -73,10 +73,9 @@ return new class extends Migration
         
             
             $table->timestamps();
-            $table->softDeletes();
             
             // Indexes for performance
-            $table->index(['company_id', 'status', 'deleted_at']);
+            $table->index(['company_id', 'status']);
             $table->index(['company_id', 'funnel_id', 'stage_id']);
             $table->index(['source_platform', 'external_id']);
             $table->index(['assigned_to', 'status']);
