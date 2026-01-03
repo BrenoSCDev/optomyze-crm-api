@@ -24,6 +24,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\LeadProductController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SaleDocController;
+use App\Http\Controllers\WhatsAppEvoIntegrationController;
+use App\Http\Controllers\WhatsAppInstanceController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -45,17 +47,34 @@ Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    /*
+    |--------------------------------------------------------------------------
+    | Auth Routes
+    |--------------------------------------------------------------------------
+    */
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/auth/update', [AuthController::class, 'updateProfile']);
     Route::post('/auth/reset/password', [AuthController::class, 'resetPasswordAuth']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | User Management Routes
+    |--------------------------------------------------------------------------
+    */
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{id}', [UserController::class, 'update']);
     Route::patch('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Funnels & Stages Routes
+    |--------------------------------------------------------------------------
+    */
     Route::get('/funnels', [FunnelController::class, 'index']);
     Route::post('/funnels', [FunnelController::class, 'store']);
     Route::get('/funnels/{id}', [FunnelController::class, 'leadsByStages']);
@@ -69,6 +88,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/funnels/{funnelId}/stages/{stageId}', [StageController::class, 'destroy']);
     Route::put('/funnels/{funnelId}/stages/{stageId}/move', [StageController::class, 'moveOrder']);
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Leads & Sales Routes
+    |--------------------------------------------------------------------------
+    */
     Route::get('/leads', [LeadController::class, 'index']);
     Route::post('/leads', [LeadController::class, 'store']);
     Route::get('/leads/{lead}', [LeadController::class, 'show']);
@@ -79,14 +104,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/leads/{lead}/assign', [LeadController::class, 'assignUser']);
 
     Route::post('/leads/{lead}/products', [LeadProductController::class, 'store']);
-
     Route::post('/leads/{lead}/sales', [SaleController::class, 'store']);
-
     Route::delete('/sales/{sale}', [SaleController::class, 'destroy']);
 
     Route::post('/sales/{sale}/docs', [SaleDocController::class, 'store']);
     Route::delete('/sales/docs/{doc}', [SaleDocController::class, 'destroy']);
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tags & Tokens Routes
+    |--------------------------------------------------------------------------
+    */
     Route::get('/tags', [TagController::class, 'index']);
     Route::post('/tags', [TagController::class, 'store']);
     Route::delete('/tags/{id}', [TagController::class, 'destroy']);
@@ -95,48 +124,108 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tokens', [ApiTokenController::class, 'generate']);
     Route::delete('/tokens/{id}', [ApiTokenController::class, 'destroy']);
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Transactions & Metrics Routes
+    |--------------------------------------------------------------------------
+    */
     Route::get('/companies/{companyId}/transactions', [LeadTransactionController::class, 'transactionsByCompany']);
     Route::get('/leads/{leadId}/transactions', [LeadTransactionController::class, 'transactionsByLead']);
 
     Route::get('/metrics/leads-breakdown', [MetricsController::class, 'dashboard']);
 
-    Route::get('/integrations/available', [IntegrationController::class, 'available']);
 
-    Route::post('/integrations/n8n-integrations', [N8nIntegrationController::class, 'createIntegration']);
-    Route::put('/integrations/n8n-integrations/configure', [N8nIntegrationController::class, 'configure']);
-    Route::get('/integrations/n8n-integrations/data', [N8nIntegrationController::class, 'configureData']);
-    Route::get('/integrations/n8n/workflows', [N8nIntegrationController::class, 'fetchWorkflows']);
+    /*
+    |--------------------------------------------------------------------------
+    | Integrations Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('integrations')->group(function () {
 
-    Route::post('/integrations/meta-ads', [MetaAdsIntegrationController::class, 'createIntegration']);
-    Route::put('/integrations/meta-ads/configure', [MetaAdsIntegrationController::class, 'configure']);
-    Route::get('/integrations/meta-ads/fetch-meta-data', [MetaAdsIntegrationController::class, 'fetchMetaData']);
+        // Available integrations
+        Route::get('/available', [IntegrationController::class, 'available']);
+        Route::get('/available/settings', [IntegrationController::class, 'availableWithSettings']);
 
-    Route::post('/integrations/google-ads', [GoogleAdsIntegrationController::class, 'createIntegration']);
-    Route::put('/integrations/google-ads/configure', [GoogleAdsIntegrationController::class, 'configure']);
-    Route::get('/integrations/google-ads/fetch-google-data', [GoogleAdsIntegrationController::class, 'fetchGoogleData']);
-    
-    Route::get('/integrations/agents/n8n', [N8nAgentController::class, 'index']);
-    Route::get('/integrations/agents/n8n/executions/{agent}', [N8nAgentController::class, 'fetchExecutions']);
+        // N8N Integrations
+        Route::post('/n8n-integrations', [N8nIntegrationController::class, 'createIntegration']);
+        Route::put('/n8n-integrations/configure', [N8nIntegrationController::class, 'configure']);
+        Route::get('/n8n-integrations/data', [N8nIntegrationController::class, 'configureData']);
+        Route::get('/n8n/workflows', [N8nIntegrationController::class, 'fetchWorkflows']);
 
+        // Meta Ads Integration
+        Route::post('/meta-ads', [MetaAdsIntegrationController::class, 'createIntegration']);
+        Route::put('/meta-ads/configure', [MetaAdsIntegrationController::class, 'configure']);
+        Route::get('/meta-ads/fetch-meta-data', [MetaAdsIntegrationController::class, 'fetchMetaData']);
+
+        // Google Ads Integration
+        Route::post('/google-ads', [GoogleAdsIntegrationController::class, 'createIntegration']);
+        Route::put('/google-ads/configure', [GoogleAdsIntegrationController::class, 'configure']);
+        Route::get('/google-ads/fetch-google-data', [GoogleAdsIntegrationController::class, 'fetchGoogleData']);
+
+        // Agents
+        Route::get('/agents/n8n', [N8nAgentController::class, 'index']);
+        Route::get('/agents/n8n/executions/{agent}', [N8nAgentController::class, 'fetchExecutions']);
+
+        // WhatsApp Evolution API
+        Route::post('/whatsapp-evo-integrations', [WhatsAppEvoIntegrationController::class, 'createIntegration']);
+        Route::put('/whatsapp-evo-integrations/configure', [WhatsAppEvoIntegrationController::class, 'configure']);
+
+        // WhatsApp Evolution API Instances
+        Route::post('/whatsapp-evo-instances', [WhatsAppInstanceController::class, 'createInstance']);
+        Route::delete('/whatsapp-evo-instances/{instanceId}', [WhatsAppInstanceController::class, 'deleteInstance']);
+        Route::delete('/whatsapp-evo-instances/{instanceId}', [WhatsAppInstanceController::class, 'deleteInstance']);
+        Route::get('/whatsapp-evo-instances/qrcode/{instanceId}', [WhatsAppInstanceController::class, 'generateQrCode']);
+        Route::post('/whatsapp-evo-instances/send-message/{instanceId}', [WhatsAppInstanceController::class, 'sendMessage']);
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Conversation Reports Routes
+    |--------------------------------------------------------------------------
+    */
     Route::post('/conversation-reports', [ConversationReportController::class, 'store']);
     Route::get('/conversation-reports/lead/{leadId}', [ConversationReportController::class, 'getByLead']);
     Route::get('/conversation-reports/agent/{agentId}', [ConversationReportController::class, 'getByAgent']);
 
-    Route::get('/tasks', [TaskController::class, 'companyTasks']);
-    Route::post('/tasks', [TaskController::class, 'store']);       
-    Route::get('/tasks/{task}', [TaskController::class, 'show']);    
-    Route::put('/tasks/{task}', [TaskController::class, 'update']);
-    Route::delete('/tasks/{task}', [TaskController::class, 'destroy']); 
 
+    /*
+    |--------------------------------------------------------------------------
+    | Tasks Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/tasks', [TaskController::class, 'companyTasks']);
+    Route::post('/tasks', [TaskController::class, 'store']);
+    Route::get('/tasks/{task}', [TaskController::class, 'show']);
+    Route::put('/tasks/{task}', [TaskController::class, 'update']);
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lead Documents Routes
+    |--------------------------------------------------------------------------
+    */
     Route::post('/lead-documents', [LeadDocumentController::class, 'store']);
     Route::delete('/lead-documents/{leadDocument}', [LeadDocumentController::class, 'destroy']);
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Products & Custom Fields Routes
+    |--------------------------------------------------------------------------
+    */
     Route::apiResource('products', ProductController::class);
     Route::post('/products/{id}/toggle-active', [ProductController::class, 'toggleActive']);
 
     Route::prefix('products/{product}')->group(function () {
         Route::get('images', [ProductImageController::class, 'index']);
         Route::post('images', [ProductImageController::class, 'store']);
+
+        Route::post('/custom-fields', [ProductController::class, 'storeCustomField']);
+        Route::put('/custom-fields/{fieldKey}', [ProductController::class, 'updateCustomField']);
+        Route::delete('/custom-fields/{fieldKey}', [ProductController::class, 'destroyCustomField']);
     });
 
     Route::put('/product-images/{productImage}', [ProductImageController::class, 'update']);
@@ -150,15 +239,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/custom-product-fields/{customProductField}', [CustomProductFieldController::class, 'update']);
     Route::delete('/custom-product-fields/{customProductField}', [CustomProductFieldController::class, 'destroy']);
 
-    Route::prefix('products/{product}')->group(function () {
-        // Route::get('/custom-fields', [ProductController::class, 'index']);
-        Route::post('/custom-fields', [ProductController::class, 'storeCustomField']);
-        Route::put('/custom-fields/{fieldKey}', [ProductController::class, 'updateCustomField']);
-        Route::delete('/custom-fields/{fieldKey}', [ProductController::class, 'destroyCustomField']);
-    });
 
-
+    /*
+    |--------------------------------------------------------------------------
+    | Settings Routes
+    |--------------------------------------------------------------------------
+    */
     Route::get('/settings-panel', [SettingsController::class, 'panel']);
+
     
 });
 
