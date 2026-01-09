@@ -7,6 +7,7 @@ use App\Http\Controllers\FunnelController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ConversationReportController;
 use App\Http\Controllers\CustomProductFieldController;
+use App\Http\Controllers\EntryRequirementController;
 use App\Http\Controllers\GoogleAdsIntegrationController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\LeadController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\TagController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LeadProductController;
+use App\Http\Controllers\ObservationController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SaleDocController;
 use App\Http\Controllers\WhatsAppChatController;
@@ -89,6 +91,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/funnels/{funnelId}/stages/{stageId}', [StageController::class, 'destroy']);
     Route::put('/funnels/{funnelId}/stages/{stageId}/move', [StageController::class, 'moveOrder']);
 
+    Route::patch('/stages/{stage}/entry-requirements',[EntryRequirementController::class, 'update']);
+
 
     /*
     |--------------------------------------------------------------------------
@@ -97,12 +101,14 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::get('/leads', [LeadController::class, 'index']);
     Route::post('/leads', [LeadController::class, 'store']);
+    Route::get('/leads/search', [LeadController::class, 'search']);
     Route::get('/leads/{lead}', [LeadController::class, 'show']);
     Route::put('/leads/{lead}', [LeadController::class, 'update']);
     Route::delete('/leads/{stageId}', [LeadController::class, 'destroy']);
     Route::post('/leads/{lead}/move-stage', [LeadController::class, 'moveToStage']);
     Route::put('/leads/{id}/tags', [LeadController::class, 'updateTags']);
     Route::post('/leads/{lead}/assign', [LeadController::class, 'assignUser']);
+    Route::post('leads/{lead}/add-erp-budget', [LeadController::class, 'addErpBudget']);
 
     Route::post('/leads/{lead}/products', [LeadProductController::class, 'store']);
     Route::post('/leads/{lead}/sales', [SaleController::class, 'store']);
@@ -110,7 +116,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/sales/{sale}/docs', [SaleDocController::class, 'store']);
     Route::delete('/sales/docs/{doc}', [SaleDocController::class, 'destroy']);
+    Route::put('/sales/{sale}/status', [SaleController::class, 'updateStatus']);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Observations (Lead Notes)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/leads/{lead}/observations', [ObservationController::class, 'index']);
+    Route::post('/observations', [ObservationController::class, 'store']);
+    Route::put('/observations/{observation}', [ObservationController::class, 'update']);
+    Route::delete('/observations/{observation}', [ObservationController::class, 'destroy']);
 
     /*
     |--------------------------------------------------------------------------
@@ -135,6 +151,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/leads/{leadId}/transactions', [LeadTransactionController::class, 'transactionsByLead']);
 
     Route::get('/metrics/leads-breakdown', [MetricsController::class, 'dashboard']);
+    Route::get('/metrics/plan-usage', [MetricsController::class, 'planUsage']);
 
 
     /*
@@ -223,7 +240,10 @@ Route::middleware('auth:sanctum')->group(function () {
     | Products & Custom Fields Routes
     |--------------------------------------------------------------------------
     */
-    Route::apiResource('products', ProductController::class);
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::put('/products/{id}', [ProductController::class, 'update']);
+    Route::delete('/products/{id}', [ProductController::class, 'destroy']);
     Route::post('/products/{id}/toggle-active', [ProductController::class, 'toggleActive']);
 
     Route::prefix('products/{product}')->group(function () {

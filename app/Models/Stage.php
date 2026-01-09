@@ -25,6 +25,7 @@ class Stage extends Model
         'color',
         'is_active',
         'settings',
+        'template_type',
     ];
 
     /**
@@ -185,6 +186,14 @@ class Stage extends Model
     }
 
     /**
+     * Get all entry requirements in this stage.
+     */
+    public function entryRequirement()
+    {
+        return $this->hasOne(EntryRequirement::class);
+    }
+    
+    /**
      * Get active leads in this stage.
      */
     public function activeLeads(): HasMany
@@ -201,6 +210,12 @@ class Stage extends Model
             'name' => 'required|string|max:100',
             'description' => 'nullable|string|max:1000',
             'type' => 'required|in:entry,normal,service,proposition,qualified,conversion,lost',
+            'color' => [
+                'nullable',
+                'string',
+                'regex:/^#[0-9A-Fa-f]{6}$/'
+            ],
+            'template_type' => 'nullable|in:stage,model',
             'settings' => 'nullable|array',
             'settings.sla_hours' => 'nullable|integer|min:1',
             'settings.auto_assign' => 'nullable|boolean',
@@ -218,6 +233,11 @@ class Stage extends Model
             'name' => 'string|max:100',
             'description' => 'nullable|string|max:1000',
             'type' => 'in:entry,normal,service,proposition,qualified,conversion,lost',
+            'color' => [
+                'nullable',
+                'string',
+                'regex:/^#[0-9A-Fa-f]{6}$/'
+            ],
             'is_active' => 'boolean',
         ];
     }

@@ -114,7 +114,7 @@ class WhatsAppChatController extends Controller
                     'type'      => $messageType === 'conversation' ? 'text' : 'text',
                     'text'      => $messageData['conversation'] ?? null,
                     'status'    => 'delivered',
-                    'sent_at'   => Carbon::createFromTimestamp($payload['data']['messageTimestamp']),
+                    'sent_at'   => now(),
                 ]
             );
 

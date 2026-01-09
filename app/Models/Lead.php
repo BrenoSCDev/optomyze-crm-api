@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Lead extends Model
 {
@@ -108,6 +109,7 @@ class Lead extends Model
         'webhook_source',
         'last_sync_at',
         'sync_enabled',
+        'erp_budgets_ids',
     ];
 
     /**
@@ -174,11 +176,22 @@ class Lead extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Get lead sales.
+     */
     public function sales()
     {
         return $this->hasMany(Sale::class);
     }
 
+    /**
+     * Get lead observations.
+     */
+    public function observations()
+    {
+        return $this->hasMany(Observation::class)->orderBy('created_at', 'desc');
+    }
+    
 
     /**
      * Get the user who qualified this lead.
@@ -186,6 +199,14 @@ class Lead extends Model
     public function qualifiedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'qualified_by');
+    }
+
+    /**
+     * Get the lead WhatsApp Evolution Chat
+     */
+    public function whatsAppEvoChat(): HasOne
+    {
+        return $this->hasOne(WhatsappEvoChat::class);
     }
 
     /**

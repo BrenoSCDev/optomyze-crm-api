@@ -22,6 +22,7 @@ class Company extends Model
         'subscription_plan',
         'is_active',
         'settings',
+        'currency' => 'string|size:3',
     ];
 
     /**

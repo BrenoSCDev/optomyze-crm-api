@@ -31,6 +31,9 @@ return new class extends Migration {
             $table->string('currency', 10)->default('USD');
             $table->text('notes')->nullable();
 
+            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('lost_at')->nullable();
+
             $table->timestamps();
         });
     }

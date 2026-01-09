@@ -190,4 +190,44 @@ class SaleController extends Controller
         ]);
     }
 
+    /**
+     * Mark a pending sale as closed or lost
+     */
+    public function updateStatus(Request $request, Sale $sale)
+    {
+        $data = $request->validate([
+            'status' => ['required', 'in:closed,lost'],
+        ]);
+
+        // Only allow status change from pending or sent
+        if (!in_array($sale->status, ['pending', 'sent'])) {
+            return response()->json([
+                'message' => 'Only pending or sent sales can be updated.',
+            ], 422);
+        }
+
+        $updateData = [
+            'status' => $data['status'],
+        ];
+
+        // Handle timestamps based on new status
+        if ($data['status'] === 'closed') {
+            $updateData['closed_at'] = now();
+            $updateData['lost_at'] = null; // ensure consistency
+        }
+
+        if ($data['status'] === 'lost') {
+            $updateData['lost_at'] = now();
+            $updateData['closed_at'] = null; // ensure consistency
+        }
+
+        $sale->update($updateData);
+
+        return response()->json([
+            'message' => 'Sale status updated successfully.',
+            'data' => $sale->fresh(),
+        ]);
+    }
+
+
 }

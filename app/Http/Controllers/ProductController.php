@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CustomProductField;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
@@ -14,7 +15,7 @@ class ProductController extends Controller
     {
         $companyId = $request->user()->company_id;
 
-        $query = Product::with(['primaryImage'])
+        $query = Product::with(['primaryImage', 'fields'])
             ->fromCompany($companyId);
 
         // Filters
@@ -56,29 +57,54 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
-            'sku' => 'required|string',
-            'base_price' => 'required|numeric|min:0',
-            'type' => 'required|in:product,service',
-            'category' => 'nullable|string|max:255',
-            'is_active' => 'boolean',
-            'cost_price' => 'nullable|numeric|min:0',
-            'metadata' => 'nullable|array',
+            'sku'         => 'required|string',
+            'base_price'  => 'required|numeric|min:0',
+            'type'        => 'required|in:product,service',
+            'category'    => 'nullable|string|max:255',
+            'is_active'   => 'boolean',
+            'cost_price'  => 'nullable|numeric|min:0',
+            'metadata'    => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $product = Product::create([
-            'company_id' => $request->user()->company_id,
-            ...$validator->validated()
-        ]);
+        $companyId = $request->user()->company_id;
+
+        /** @var \App\Models\Product $product */
+        $product = null;
+
+        DB::transaction(function () use ($validator, $companyId, &$product) {
+
+            // 1. Create product
+            $product = Product::create([
+                'company_id' => $companyId,
+                ...$validator->validated()
+            ]);
+
+            // 2. Replicate model-level custom fields
+            $modelFields = CustomProductField::where('company_id', $companyId)
+                ->where('type', 'model')
+                ->get();
+
+            foreach ($modelFields as $field) {
+                CustomProductField::create([
+                    'company_id' => $companyId,
+                    'product_id' => $product->id,
+                    'type'       => 'product',
+                    'field_key'  => $field->field_key,
+                    'field_type' => $field->field_type,
+                    'field_value'=> $field->field_value,
+                ]);
+            }
+        });
 
         return response()->json([
             'message' => 'Product created successfully.',
-            'product' => $product->load(['images'])
+            'product' => $product->load(['images', 'fields'])
         ], 201);
     }
 
@@ -124,11 +150,11 @@ class ProductController extends Controller
         $product = Product::fromCompany($request->user()->company_id)->findOrFail($id);
 
         // Check if product has sales
-        if ($product->sales()->exists()) {
-            return response()->json([
-                'message' => 'Cannot delete product with existing sales. Consider deactivating it instead.'
-            ], 422);
-        }
+        // if ($product->sales()->exists()) {
+        //     return response()->json([
+        //         'message' => 'Cannot delete product with existing sales. Consider deactivating it instead.'
+        //     ], 422);
+        // }
 
         $product->delete();
 

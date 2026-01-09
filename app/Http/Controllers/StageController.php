@@ -19,6 +19,7 @@ class StageController extends Controller
         $funnel = Funnel::fromCompany($user->company_id)->findOrFail($funnelId);
 
         $stages = $funnel->stages()->ordered()
+        ->with('entryRequirement')
         ->get()
         ->map(function ($stage) {
             $stage->nleads = $stage->leads->count();
@@ -46,13 +47,17 @@ class StageController extends Controller
             'funnel_id'   => $funnel->id,
             'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'color'       => $validated['color'],
             'order'       => $maxOrder + 1, // always the last
             'type'        => $validated['type'],
             'is_active'   => $validated['is_active'] ?? true,
             'settings'    => $validated['settings'] ?? null,
+            'template_type' =>$validated['template_type'] = $validated['template_type'] ?? 'stage'
         ]);
 
-        return response()->json($stage, 201);
+        $stage->entryRequirement()->create();
+
+        return response()->json($stage->load(['entryRequirement']), 201);
     }
 
 

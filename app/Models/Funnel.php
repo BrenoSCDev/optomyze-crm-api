@@ -23,6 +23,7 @@ class Funnel extends Model
         'is_active',
         'created_by',
         'settings',
+        'type',
     ];
 
     /**

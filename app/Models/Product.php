@@ -34,6 +34,11 @@ class Product extends Model
         return $this->belongsTo(Company::class);
     }
 
+    public function fields()
+    {
+        return $this->hasMany(CustomProductField::class);
+    }
+
     public function images()
     {
         return $this->hasMany(ProductImage::class)->orderBy('display_order');

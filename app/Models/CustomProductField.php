@@ -11,6 +11,8 @@ class CustomProductField extends Model
 
     protected $fillable = [
         'company_id',
+        'product_id',
+        'type',
         'field_type',
         'field_key',
         'field_value',

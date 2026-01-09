@@ -21,47 +21,90 @@ class AuthController extends Controller
     /**
      * Login user and issue Sanctum token
      */
+    // public function login(Request $request)
+    // {
+    //     $credentials = $request->validate([
+    //         'email'    => ['required', 'email'],
+    //         'password' => ['required'],
+    //     ]);
+
+    //     if (!Auth::attempt($credentials)) {
+    //         throw ValidationException::withMessages([
+    //             'email' => ['The provided credentials are incorrect.'],
+    //         ]);
+    //     }
+
+    //     $user = Auth::user();
+
+    //     if (!$user->is_active) {
+    //         return response()->json(['message' => 'User account is inactive'], 403);
+    //     }
+
+    //     $user->updateLastLogin();
+
+    //     $token = $user->createToken('auth_token')->plainTextToken;
+
+    //     $user->setAttribute('company_name', $user->company ? $user->company->name : null);
+
+    //     // Fetch funnels related to the user's company
+    //     $funnels = Funnel::where('company_id', $user->company_id)
+    //         ->where(['is_active' => true, 'type' => 'funnel'])
+    //         ->get()
+    //         ->map(function ($funnel) {
+    //             $funnel->nleads = $funnel->totalLeadsCount();
+    //             return $funnel;
+    //         });
+
+    //     return response()->json([
+    //         'access_token' => $token,
+    //         'token_type'   => 'Bearer',
+    //         'user'         => $user,
+    //         'funnels'      => $funnels,
+    //     ]);
+    // }
+
     public function login(Request $request)
-    {
-        $credentials = $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required'],
-        ]);
+{
+    $request->validate([
+        'email' => ['required', 'email'],
+    ]);
 
-        if (!Auth::attempt($credentials)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
-        }
+    // Find the user by email
+    $user = User::where('email', $request->email)->first();
 
-        $user = Auth::user();
-
-        if (!$user->is_active) {
-            return response()->json(['message' => 'User account is inactive'], 403);
-        }
-
-        $user->updateLastLogin();
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        $user->setAttribute('company_name', $user->company ? $user->company->name : null);
-
-        // Fetch funnels related to the user's company
-        $funnels = Funnel::where('company_id', $user->company_id)
-            ->where('is_active', true)
-            ->get()
-            ->map(function ($funnel) {
-                $funnel->nleads = $funnel->totalLeadsCount();
-                return $funnel;
-            });
-
-        return response()->json([
-            'access_token' => $token,
-            'token_type'   => 'Bearer',
-            'user'         => $user,
-            'funnels'      => $funnels,
-        ]);
+    if (!$user) {
+        return response()->json(['message' => 'User not found'], 404);
     }
+
+    if (!$user->is_active) {
+        return response()->json(['message' => 'User account is inactive'], 403);
+    }
+
+    // Log the user in without checking password
+    Auth::login($user);
+
+    $user->updateLastLogin();
+
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    $user->setAttribute('company_name', $user->company ? $user->company->name : null);
+
+    // Fetch funnels related to the user's company
+    $funnels = Funnel::where('company_id', $user->company_id)
+        ->where(['is_active' => true, 'type' => 'funnel'])
+        ->get()
+        ->map(function ($funnel) {
+            $funnel->nleads = $funnel->totalLeadsCount();
+            return $funnel;
+        });
+
+    return response()->json([
+        'access_token' => $token,
+        'token_type'   => 'Bearer',
+        'user'         => $user,
+        'funnels'      => $funnels,
+    ]);
+}
 
 
     /**

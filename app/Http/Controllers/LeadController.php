@@ -68,12 +68,15 @@ class LeadController extends Controller
             'assignedUser:id,name,email',
             'transactions',
             'docs',
+            'whatsAppEvoChat.messages' => function ($query) {
+                $query->orderBy('sent_at');
+            },
+            'whatsAppEvoChat.instance:id,instance_name',
             'products:id,name,base_price,type,description',
             'reports.agent',
             'tasks.assignee:id,name,email',
             'tasks.creator:id,name,email',
-
-            // ✅ NEW: sales with all relations
+            'observations.user:id,name,email',
             'sales' => function ($query) {
                 $query->with([
                     'user:id,name,email',
@@ -84,7 +87,7 @@ class LeadController extends Controller
             },
         ]);
 
-        // Promote pivot fields into product object
+
         $lead->products->transform(function ($product) {
             return [
                 'id' => $product->id,
@@ -118,8 +121,6 @@ class LeadController extends Controller
             'products' => $products,
         ]);
     }
-
-
 
     /**
      * Update an existing lead.
@@ -291,5 +292,54 @@ class LeadController extends Controller
             'data' => $lead
         ], 201);
     }
+
+    public function search(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user || !$user->company_id) {
+            return response()->json([
+                'message' => 'User does not belong to a company.'
+            ], 400);
+        }
+
+        $request->validate([
+            'q' => 'required|string|min:3',
+        ]);
+
+        $query = $request->input('q');
+
+        $leads = Lead::where('company_id', $user->company_id)
+            ->where('first_name', 'like', "%{$query}%")
+            ->select('id', 'first_name', 'funnel_id')
+            ->orderBy('first_name')
+            ->limit(20)
+            ->get();
+
+        return response()->json($leads);
+    }
+
+public function addErpBudget(Request $request, Lead $lead)
+{
+    $request->validate([
+        'erp_budget_id' => 'required|integer',
+    ]);
+
+    $erpBudgetId = $request->input('erp_budget_id');
+
+    // Decode JSON string into array
+    $currentIds = json_decode($lead->erp_budgets_ids, true) ?? [];
+
+    if (!in_array($erpBudgetId, $currentIds)) {
+        $currentIds[] = $erpBudgetId;
+        $lead->erp_budgets_ids = json_encode($currentIds); // save as JSON string
+        $lead->save();
+    }
+
+    return response()->json([
+        'message' => 'ERP budget ID added successfully',
+        'erp_budgets_ids' => $currentIds, // return as array
+    ]);
+}
 
 }

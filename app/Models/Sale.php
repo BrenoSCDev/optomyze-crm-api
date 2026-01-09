@@ -23,12 +23,19 @@ class Sale extends Model
         'total',
         'currency',
         'notes',
+        'closed_at',
+        'lost_at',
     ];
 
     protected $appends = [
         'charges_total',
         'final_total',
     ];
+
+    protected $casts = [
+    'total' => 'decimal:2',
+];
+
 
     public function company():BelongsTo
     {

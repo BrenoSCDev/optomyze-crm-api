@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Funnel;
+use App\Models\Stage;
 use App\Models\Tag;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,15 +19,16 @@ class FunnelController extends Controller
     {
         $user = Auth::user();
 
-    $funnels = Funnel::fromCompany($user->company_id)
-        ->get() // get results first
-        ->map(function ($funnel) {
-            $funnel->nleads = $funnel->totalLeadsCount();
-            return $funnel;
-        });
+        $funnels = Funnel::fromCompany($user->company_id)
+            ->where('type', 'funnel')
+            ->get() // get results first
+            ->map(function ($funnel) {
+                $funnel->nleads = $funnel->totalLeadsCount();
+                return $funnel;
+            });
 
-        return response()->json($funnels);
-    }
+            return response()->json($funnels);
+        }
 
     /**
      * Store a newly created funnel in storage.
@@ -36,12 +38,19 @@ class FunnelController extends Controller
         $user = Auth::user();
 
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'is_active'   => 'boolean',
-            'settings'    => 'nullable|array',
+            'name'            => 'required|string|max:255',
+            'description'     => 'nullable|string',
+            'is_active'       => 'boolean',
+            'settings'        => 'nullable|array',
+            'model_funnel_id' => 'nullable|exists:funnels,id',
+            'type'            => 'nullable',
         ]);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Create the new funnel
+        |--------------------------------------------------------------------------
+        */
         $funnel = Funnel::create([
             'company_id'  => $user->company_id,
             'name'        => $validated['name'],
@@ -49,9 +58,39 @@ class FunnelController extends Controller
             'is_active'   => $validated['is_active'] ?? true,
             'created_by'  => $user->id,
             'settings'    => $validated['settings'] ?? null,
+            'type'        => $validated['type'] ?? 'funnel',
         ]);
 
-        return response()->json($funnel, 201);
+        /*
+        |--------------------------------------------------------------------------
+        | Replicate stages from model funnel (if provided)
+        |--------------------------------------------------------------------------
+        */
+        if (!empty($validated['model_funnel_id'])) {
+            $modelFunnel = Funnel::where('id', $validated['model_funnel_id'])
+                ->where('type', 'model')
+                ->with(['stages' => function ($q) {
+                    $q->where('type', 'model')->orderBy('order');
+                }])
+                ->firstOrFail();
+
+            foreach ($modelFunnel->stages as $modelStage) {
+                Stage::create([
+                    'company_id'  => $user->company_id,
+                    'funnel_id'   => $funnel->id,
+                    'name'        => $modelStage->name,
+                    'description' => $modelStage->description,
+                    'type'        => 'stage',
+                    'order'       => $modelStage->order,
+                    'color'       => $modelStage->color,
+                    'settings'    => $modelStage->settings,
+                    'is_active'   => true,
+                    'created_by'  => $user->id,
+                ]);
+            }
+        }
+
+        return response()->json($funnel->load('stages'), 201);
     }
 
     /**

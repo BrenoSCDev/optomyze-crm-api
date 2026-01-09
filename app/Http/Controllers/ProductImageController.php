@@ -54,7 +54,6 @@ class ProductImageController extends Controller
             'product_id'    => $product->id,
             'storage_path'  => $path,
             'filename'      => $file->getClientOriginalName(),
-            'image_type'    => $validated['image_type'] ?? 'default',
             'display_order' => $validated['display_order'] 
                 ?? ($product->images()->max('display_order') + 1),
             'is_primary'    => $validated['is_primary'] ?? false,

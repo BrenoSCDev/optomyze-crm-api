@@ -3,13 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Funnel;
 use App\Models\Lead;
 use App\Models\Stage;
 use App\Models\LeadTransaction;
+use App\Models\Sale;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class MetricsController extends Controller
 {
@@ -19,7 +22,8 @@ class MetricsController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         $user = $request->user();
-        $companyId = $user->company_id;
+        $company = $user->company;
+        $companyId = $company->id;
         
         // Get current and last month dates
         $currentMonth = Carbon::now()->startOfMonth();
@@ -35,30 +39,35 @@ class MetricsController extends Controller
         $conversionRate = $this->getConversionRate($companyId);
         $lastMonthConversionRate = $this->getConversionRate($companyId, $lastMonth, $endOfLastMonth);
 
-        // 3. Average Conversion Time
-        $avgConversionTime = $this->getAverageConversionTime($companyId);
-        $lastMonthAvgConversionTime = $this->getAverageConversionTime($companyId, $lastMonth, $endOfLastMonth);
-
-        // 4. Monthly Lead Creation Data (Current Year)
+        // 3. Monthly Lead Creation Data (Current Year)
         $monthlyLeadData = $this->getMonthlyLeadData($companyId);
 
-        // 5. Month-over-Month Performance Comparison
+        // 4. Month-over-Month Performance Comparison
         $performance = $this->calculatePerformanceComparison(
             $leadStats,
             $lastMonthLeadStats,
             $conversionRate,
-            $lastMonthConversionRate,
-            $avgConversionTime,
-            $lastMonthAvgConversionTime
+            $lastMonthConversionRate
         );
+
+        // 5. Revenue Metrics (Module-aware)
+        $revenueMetrics = $this->getRevenueMetricsByModule($company);
+
+        // 6. Leads by Funnel Stage Analysis
+        $leadsByFunnelStage = $this->getLeadsByFunnelStage($companyId);
+
+        // 7. Estimated vs Closed Value Analysis (Product Module Only)
+        $estimatedVsClosedValue = $this->getEstimatedVsClosedValue($company);
 
         return response()->json([
             'data' => [
                 'lead_statistics' => $leadStats,
                 'conversion_rate' => round($conversionRate, 2),
-                'average_conversion_time' => $avgConversionTime,
                 'monthly_lead_data' => $monthlyLeadData,
                 'performance_comparison' => $performance,
+                'revenue_metrics' => $revenueMetrics,
+                'leads_by_funnel_stage' => $leadsByFunnelStage,
+                'estimated_vs_closed_value' => $estimatedVsClosedValue,
                 'summary' => [
                     'period' => [
                         'current_month' => $currentMonth->format('F Y'),
@@ -106,48 +115,6 @@ class MetricsController extends Controller
     }
 
     /**
-     * Calculate conversion time comparison with detailed breakdown.
-     */
-    private function calculateConversionTimeComparison(array $currentTime, array $lastMonthTime): array
-    {
-        $currentDays = $currentTime['total_days'];
-        $previousDays = $lastMonthTime['total_days'];
-        
-        if ($previousDays == 0) {
-            $percentageChange = $currentDays > 0 ? 100.0 : 0.0;
-        } else {
-            $percentageChange = (($currentDays - $previousDays) / $previousDays) * 100;
-        }
-
-        // For conversion time, lower is better
-        $isImprovement = $percentageChange < 0;
-
-        return [
-            'current_value' => $currentTime,
-            'previous_value' => $lastMonthTime,
-            'percentage_change' => round($percentageChange, 2),
-            'performance_indicator' => $isImprovement ? 'improvement' : 'worsening',
-            'change_direction' => $percentageChange > 0 ? 'increase' : ($percentageChange < 0 ? 'decrease' : 'no_change'),
-            'summary' => $this->getConversionTimeChangeSummary($currentTime, $lastMonthTime, $percentageChange),
-        ];
-    }
-
-    /**
-     * Get human-readable summary of conversion time changes.
-     */
-    private function getConversionTimeChangeSummary(array $currentTime, array $lastMonthTime, float $percentageChange): string
-    {
-        if ($percentageChange == 0) {
-            return "Conversion time remained the same at {$currentTime['human_readable']}";
-        }
-        
-        $direction = $percentageChange > 0 ? 'increased' : 'decreased';
-        $improvement = $percentageChange < 0 ? 'improvement' : 'decline';
-        
-        return "Conversion time {$direction} from {$lastMonthTime['human_readable']} to {$currentTime['human_readable']} ({$improvement})";
-    }
-
-    /**
      * Calculate conversion rate.
      */
     private function getConversionRate(int $companyId, Carbon $startDate = null, Carbon $endDate = null): float
@@ -169,161 +136,6 @@ class MetricsController extends Controller
         }
 
         return ($convertedLeads / $totalLeads) * 100;
-    }
-
-    /**
-     * Calculate average conversion time in days with detailed breakdown.
-     */
-    private function getAverageConversionTime(int $companyId, Carbon $startDate = null, Carbon $endDate = null): array
-    {
-        // Get all leads that are currently in conversion stage
-        $convertedLeadsQuery = Lead::query()
-            ->fromCompany($companyId)
-            ->join('stages', 'leads.stage_id', '=', 'stages.id')
-            ->where('stages.type', 'conversion');
-
-        // Apply date filters if provided
-        if ($startDate && $endDate) {
-            $convertedLeadsQuery->whereBetween('leads.created_at', [$startDate, $endDate]);
-        }
-
-        $convertedLeads = $convertedLeadsQuery->select('leads.id', 'leads.created_at')->get();
-
-        if ($convertedLeads->isEmpty()) {
-            return [
-                'total_days' => 0,
-                'total_hours' => 0,
-                'total_minutes' => 0,
-                'days' => 0,
-                'hours' => 0,
-                'minutes' => 0,
-                'human_readable' => 'No conversions yet',
-                'converted_leads_count' => 0,
-            ];
-        }
-
-        $totalMinutes = 0;
-        $validConversions = 0;
-        $conversionTimes = [];
-
-        foreach ($convertedLeads as $lead) {
-            // Find the transaction where lead moved to conversion stage
-            $conversionTransaction = LeadTransaction::where('lead_id', $lead->id)
-                ->whereHas('toStage', function ($query) {
-                    $query->where('type', 'conversion');
-                })
-                ->orderBy('created_at', 'asc')
-                ->first();
-
-            if ($conversionTransaction) {
-                $leadCreatedAt = Carbon::parse($lead->created_at);
-                $conversionAt = Carbon::parse($conversionTransaction->created_at);
-                
-                $diffInMinutes = $leadCreatedAt->diffInMinutes($conversionAt);
-                $totalMinutes += $diffInMinutes;
-                $validConversions++;
-                
-                $conversionTimes[] = [
-                    'lead_id' => $lead->id,
-                    'minutes' => $diffInMinutes,
-                    'days' => floor($diffInMinutes / (24 * 60)),
-                    'hours' => floor(($diffInMinutes % (24 * 60)) / 60),
-                    'remaining_minutes' => $diffInMinutes % 60,
-                ];
-            }
-        }
-
-        if ($validConversions === 0) {
-            return [
-                'total_days' => 0,
-                'total_hours' => 0,
-                'total_minutes' => 0,
-                'days' => 0,
-                'hours' => 0,
-                'minutes' => 0,
-                'human_readable' => 'No valid conversions found',
-                'converted_leads_count' => 0,
-            ];
-        }
-
-        $averageMinutes = $totalMinutes / $validConversions;
-        
-        // Convert to different time units
-        $totalDays = round($averageMinutes / (24 * 60), 2);
-        $totalHours = round($averageMinutes / 60, 2);
-        
-        // Break down into days, hours, minutes
-        $days = floor($averageMinutes / (24 * 60));
-        $remainingMinutes = $averageMinutes % (24 * 60);
-        $hours = floor($remainingMinutes / 60);
-        $minutes = round($remainingMinutes % 60);
-
-        // Create human readable string
-        $humanReadable = $this->formatConversionTime($days, $hours, $minutes);
-
-        return [
-            'total_days' => $totalDays,
-            'total_hours' => $totalHours,
-            'total_minutes' => round($averageMinutes, 2),
-            'days' => $days,
-            'hours' => $hours,
-            'minutes' => $minutes,
-            'human_readable' => $humanReadable,
-            'converted_leads_count' => $validConversions,
-            'detailed_breakdown' => [
-                'fastest_conversion' => $conversionTimes ? min(array_column($conversionTimes, 'minutes')) : 0,
-                'slowest_conversion' => $conversionTimes ? max(array_column($conversionTimes, 'minutes')) : 0,
-                'median_conversion' => $this->calculateMedian(array_column($conversionTimes, 'minutes')),
-            ],
-        ];
-    }
-
-    /**
-     * Format conversion time into human readable string.
-     */
-    private function formatConversionTime(int $days, int $hours, int $minutes): string
-    {
-        $parts = [];
-        
-        if ($days > 0) {
-            $parts[] = $days . ' ' . ($days === 1 ? 'day' : 'days');
-        }
-        
-        if ($hours > 0) {
-            $parts[] = $hours . ' ' . ($hours === 1 ? 'hour' : 'hours');
-        }
-        
-        if ($minutes > 0 || empty($parts)) {
-            $parts[] = $minutes . ' ' . ($minutes === 1 ? 'minute' : 'minutes');
-        }
-        
-        if (count($parts) === 1) {
-            return $parts[0];
-        } elseif (count($parts) === 2) {
-            return implode(' and ', $parts);
-        } else {
-            $lastPart = array_pop($parts);
-            return implode(', ', $parts) . ', and ' . $lastPart;
-        }
-    }
-
-    /**
-     * Calculate median from array of values.
-     */
-    private function calculateMedian(array $values): float
-    {
-        if (empty($values)) {
-            return 0;
-        }
-        
-        sort($values);
-        $count = count($values);
-        
-        if ($count % 2 === 0) {
-            return ($values[$count / 2 - 1] + $values[$count / 2]) / 2;
-        } else {
-            return $values[floor($count / 2)];
-        }
     }
 
     /**
@@ -365,9 +177,7 @@ class MetricsController extends Controller
         array $currentStats,
         array $lastMonthStats,
         float $currentConversionRate,
-        float $lastMonthConversionRate,
-        array $currentAvgTime,
-        array $lastMonthAvgTime
+        float $lastMonthConversionRate
     ): array {
         return [
             'total_leads' => $this->calculateMetricComparison(
@@ -394,10 +204,6 @@ class MetricsController extends Controller
                 $currentConversionRate,
                 $lastMonthConversionRate,
                 'higher_is_better'
-            ),
-            'average_conversion_time' => $this->calculateConversionTimeComparison(
-                $currentAvgTime,
-                $lastMonthAvgTime
             ),
         ];
     }
@@ -450,7 +256,6 @@ class MetricsController extends Controller
 
         $stats = $this->getLeadStatistics($companyId, $startDate, $endDate);
         $conversionRate = $this->getConversionRate($companyId, $startDate, $endDate);
-        $avgConversionTime = $this->getAverageConversionTime($companyId, $startDate, $endDate);
 
         return response()->json([
             'data' => [
@@ -460,7 +265,6 @@ class MetricsController extends Controller
                 ],
                 'lead_statistics' => $stats,
                 'conversion_rate' => round($conversionRate, 2),
-                'average_conversion_time' => $avgConversionTime,
             ],
         ]);
     }
@@ -580,4 +384,520 @@ class MetricsController extends Controller
             'data' => $summary,
         ]);
     }
+
+    /**
+     * Get revenue metrics based on company's active module.
+     * Returns data only if the module supports revenue tracking.
+     */
+    private function getRevenueMetricsByModule($company): array
+    {
+        // Check if the company is using the product module
+        if ($company->product_module !== 'product') {
+            return [
+                'available' => false,
+                'message' => 'Revenue metrics are not available for the current module configuration.',
+                'active_module' => $company->product_module,
+            ];
+        }
+
+        // Fetch revenue metrics based on active module
+        $metrics = $this->getRevenueDataByModule($company->id, $company->product_module);
+
+        return [
+            'available' => true,
+            'module' => $company->product_module,
+            'metrics' => $metrics,
+        ];
+    }
+
+    /**
+     * Get revenue data based on the active module.
+     * This method routes to the appropriate data source.
+     */
+    private function getRevenueDataByModule(int $companyId, string $module): array
+    {
+        return match ($module) {
+            'product' => $this->getProductModuleRevenue($companyId),
+            'ERP' => $this->getERPModuleRevenue($companyId),
+            default => [
+                'error' => 'Unsupported module type',
+                'module' => $module,
+            ],
+        };
+    }
+
+    /**
+     * Get revenue metrics for the Product module.
+     * Revenue is calculated from Sales with status = 'closed'.
+     */
+    private function getProductModuleRevenue(int $companyId): array
+    {
+        $currentYear = Carbon::now()->year;
+        $currentMonth = Carbon::now()->month;
+
+        // 1. Total Annual Revenue (Current Year)
+        $totalAnnualRevenue = Sale::where('company_id', $companyId)
+            ->where('status', 'closed')
+            ->whereYear('closed_at', $currentYear)
+            ->sum(DB::raw('`total`'));
+
+        // 2. Total Monthly Revenue (Current Month)
+        $totalMonthlyRevenue = Sale::where('company_id', $companyId)
+            ->where('status', 'closed')
+            ->whereYear('closed_at', $currentYear)
+            ->whereMonth('closed_at', $currentMonth)
+            ->sum(DB::raw('`total`'));
+
+        // 3. Average Deal Value (Closed Sales Only)
+        $closedSalesCount = Sale::where('company_id', $companyId)
+            ->where('status', 'closed')
+            ->count();
+
+        $averageDealValue = $closedSalesCount > 0
+            ? $totalAnnualRevenue / $closedSalesCount
+            : 0;
+
+        // 4. Monthly Closed vs Lost Deals Analysis (Current Year Only)
+        $monthlyDealsAnalysis = $this->getMonthlyClosedVsLostAnalysis($companyId);
+
+        // 5. Deals Status Distribution
+        $dealsDistribution = $this->getDealsStatusDistribution($companyId);
+
+        return [
+            'total_annual_revenue' => round($totalAnnualRevenue, 2),
+            'total_monthly_revenue' => round($totalMonthlyRevenue, 2),
+            'average_deal_value' => round($averageDealValue, 2),
+            'closed_deals_count' => $closedSalesCount,
+            'monthly_deals_analysis' => $monthlyDealsAnalysis,
+            'deals_status_distribution' => $dealsDistribution,
+            'period' => [
+                'current_year' => $currentYear,
+                'current_month' => Carbon::now()->format('F Y'),
+            ],
+        ];
+    }
+
+    /**
+     * Get revenue metrics for the ERP module.
+     * Placeholder for future implementation.
+     */
+    private function getERPModuleRevenue(int $companyId): array
+    {
+        // Future implementation: Revenue from invoices, payments, or financial ledger
+        return [
+            'message' => 'ERP module revenue metrics are not yet implemented',
+            'total_annual_revenue' => 0,
+            'total_monthly_revenue' => 0,
+            'average_deal_value' => 0,
+            'monthly_deals_analysis' => [],
+            'deals_status_distribution' => [],
+        ];
+    }
+
+    /**
+     * Get monthly closed vs lost deals analysis for current year.
+     * Includes average monthly revenue and average lost revenue.
+     */
+    private function getMonthlyClosedVsLostAnalysis(int $companyId): array
+    {
+        $currentYear = Carbon::now()->year;
+        $months = [
+            1 => 'january', 2 => 'february', 3 => 'march', 4 => 'april',
+            5 => 'may', 6 => 'june', 7 => 'july', 8 => 'august',
+            9 => 'september', 10 => 'october', 11 => 'november', 12 => 'december'
+        ];
+
+        // Get closed deals by month
+        $closedDeals = Sale::where('company_id', $companyId)
+            ->where('status', 'closed')
+            ->whereYear('closed_at', $currentYear)
+            ->select(
+                DB::raw('MONTH(closed_at) as month'),
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(total) as total_value')
+            )
+            ->groupBy(DB::raw('MONTH(closed_at)'))
+            ->get()
+            ->keyBy('month');
+
+        // Get lost deals by month
+        $lostDeals = Sale::where('company_id', $companyId)
+            ->where('status', 'lost')
+            ->whereYear('lost_at', $currentYear)
+            ->select(
+                DB::raw('MONTH(lost_at) as month'),
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(total) as total_value')
+            )
+            ->groupBy(DB::raw('MONTH(lost_at)'))
+            ->get()
+            ->keyBy('month');
+
+        // Build monthly comparison
+        $monthlyData = [];
+        $totalClosedRevenue = 0;
+        $totalLostRevenue = 0;
+        $monthsWithClosedDeals = 0;
+        $monthsWithLostDeals = 0;
+
+        for ($month = 1; $month <= 12; $month++) {
+            $monthName = $months[$month];
+            
+            $closedData = $closedDeals->get($month);
+            $lostData = $lostDeals->get($month);
+
+            $closedValue = $closedData ? $closedData->total_value : 0;
+            $lostValue = $lostData ? $lostData->total_value : 0;
+
+            $monthlyData[$monthName] = [
+                'closed' => [
+                    'count' => $closedData ? $closedData->count : 0,
+                    'total' => round($closedValue, 2),
+                ],
+                'lost' => [
+                    'count' => $lostData ? $lostData->count : 0,
+                    'total' => round($lostValue, 2),
+                ],
+            ];
+
+            // Accumulate totals for averages
+            if ($closedValue > 0) {
+                $totalClosedRevenue += $closedValue;
+                $monthsWithClosedDeals++;
+            }
+            if ($lostValue > 0) {
+                $totalLostRevenue += $lostValue;
+                $monthsWithLostDeals++;
+            }
+        }
+
+        // Calculate average monthly revenue (only for months with closed deals)
+        $averageMonthlyRevenue = $monthsWithClosedDeals > 0
+            ? round($totalClosedRevenue / $monthsWithClosedDeals, 2)
+            : 0;
+
+        // Calculate average lost revenue (only for months with lost deals)
+        $averageLostRevenue = $monthsWithLostDeals > 0
+            ? round($totalLostRevenue / $monthsWithLostDeals, 2)
+            : 0;
+
+        return [
+            'monthly_data' => $monthlyData,
+            'average_monthly_revenue' => $averageMonthlyRevenue,
+            'average_lost_revenue' => $averageLostRevenue,
+            'year' => $currentYear,
+        ];
+    }
+
+    /**
+     * Get deals status distribution with counts and percentages.
+     * Includes all sales regardless of status.
+     */
+    private function getDealsStatusDistribution(int $companyId): array
+    {
+        $statuses = ['pending', 'sent', 'closed', 'lost'];
+
+        // Get total sales count
+        $totalSales = Sale::where('company_id', $companyId)->count();
+
+        if ($totalSales === 0) {
+            return [
+                'total_deals' => 0,
+                'distribution' => array_fill_keys($statuses, [
+                    'count' => 0,
+                    'percentage' => 0,
+                ]),
+            ];
+        }
+
+        // Get counts by status
+        $statusCounts = Sale::where('company_id', $companyId)
+            ->select('status', DB::raw('COUNT(*) as count'))
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        // Build distribution with percentages
+        $distribution = [];
+        foreach ($statuses as $status) {
+            $count = $statusCounts[$status] ?? 0;
+            $percentage = ($count / $totalSales) * 100;
+
+            $distribution[$status] = [
+                'count' => $count,
+                'percentage' => round($percentage, 2),
+            ];
+        }
+
+        return [
+            'total_deals' => $totalSales,
+            'distribution' => $distribution,
+        ];
+    }
+
+    /**
+     * Get leads distribution by funnel stage.
+     * Shows lead count and percentage per stage in each funnel.
+     */
+    private function getLeadsByFunnelStage(int $companyId): array
+    {
+        // Get all funnels with their stages and leads (eager loading)
+    $funnels = Funnel::where('company_id', $companyId)
+        ->with(['stages' => function ($query) use ($companyId) {
+            $query->with(['leads' => function ($leadsQuery) use ($companyId) {
+                $leadsQuery->where('company_id', $companyId)
+                    ->select('id', 'stage_id', 'funnel_id', 'company_id');
+            }]);
+        }])
+        ->get();
+
+
+        $funnelAnalysis = [];
+
+        foreach ($funnels as $funnel) {
+            // Count total leads in funnel
+            $totalLeadsInFunnel = Lead::where('funnel_id', $funnel->id)
+                ->where('company_id', $companyId)
+                ->count();
+
+            $stagesData = [];
+
+            foreach ($funnel->stages as $stage) {
+                $leadsInStage = Lead::where('stage_id', $stage->id)
+                    ->where('funnel_id', $funnel->id)
+                    ->where('company_id', $companyId)
+                    ->count();
+
+                // Calculate percentage
+                $percentage = $totalLeadsInFunnel > 0
+                    ? round(($leadsInStage / $totalLeadsInFunnel) * 100, 2)
+                    : 0;
+
+                $stagesData[] = [
+                    'stage_id' => $stage->id,
+                    'stage_name' => $stage->name,
+                    'stage_type' => $stage->type ?? null,
+                    'leads' => $leadsInStage,
+                    'percentage' => $percentage,
+                ];
+            }
+
+            $funnelAnalysis[] = [
+                'funnel_id' => $funnel->id,
+                'funnel_name' => $funnel->name,
+                'total_leads' => $totalLeadsInFunnel,
+                'stages' => $stagesData,
+            ];
+        }
+
+        return [
+            'available' => true,
+            'funnels' => $funnelAnalysis,
+            'total_funnels' => count($funnelAnalysis),
+        ];
+    }
+
+    /**
+     * Get estimated value vs closed value analysis per funnel.
+     * Only available for product module.
+     */
+    private function getEstimatedVsClosedValue($company): array
+    {
+        // Check if module supports this analysis
+        if ($company->product_module !== 'product') {
+            return [
+                'available' => false,
+                'message' => 'Estimated vs closed value analysis is only available for product module.',
+                'active_module' => $company->product_module,
+            ];
+        }
+
+        $companyId = $company->id;
+
+        // Get all funnels with their stages and leads (with products)
+        $funnels = Funnel::where('company_id', $companyId)
+            ->with(['stages.leads.products'])
+            ->get();
+
+        $funnelValueAnalysis = [];
+
+        foreach ($funnels as $funnel) {
+            $funnelEstimatedValue = 0;
+
+            // Calculate estimated value from all leads in funnel
+            foreach ($funnel->stages as $stage) {
+                foreach ($stage->leads as $lead) {
+                    // Calculate lead estimated value from products
+                    $leadEstimatedValue = $lead->products->sum(function ($product) {
+                        return (float) ($product->pivot->total_price ?? 0);
+                    });
+
+                    $funnelEstimatedValue += $leadEstimatedValue;
+                }
+            }
+
+            // Calculate closed value from sales
+            $closedValue = Sale::where('company_id', $companyId)
+                ->where('status', 'closed')
+                ->whereHas('lead', function ($query) use ($funnel) {
+                    $query->where('funnel_id', $funnel->id);
+                })
+                ->sum('total');
+
+            // Calculate conversion percentage
+            $conversionPercentage = $funnelEstimatedValue > 0
+                ? round(($closedValue / $funnelEstimatedValue) * 100, 2)
+                : 0;
+
+            // Calculate gap percentage
+            $gapPercentage = $funnelEstimatedValue > 0
+                ? round(100 - $conversionPercentage, 2)
+                : 0;
+
+            $funnelValueAnalysis[] = [
+                'funnel_id' => $funnel->id,
+                'funnel_name' => $funnel->name,
+                'estimated_value' => round($funnelEstimatedValue, 2),
+                'closed_value' => round($closedValue, 2),
+                'conversion_percentage' => $conversionPercentage,
+                'gap_percentage' => $gapPercentage,
+            ];
+        }
+
+        return [
+            'available' => true,
+            'funnels' => $funnelValueAnalysis,
+            'total_funnels' => count($funnelValueAnalysis),
+            'summary' => [
+                'total_estimated_value' => round(array_sum(array_column($funnelValueAnalysis, 'estimated_value')), 2),
+                'total_closed_value' => round(array_sum(array_column($funnelValueAnalysis, 'closed_value')), 2),
+            ],
+        ];
+    }
+
+    public function planUsage()
+    {
+        $user = Auth::user();
+
+        if (!$user || !$user->company_id) {
+            return response()->json([
+                'message' => 'User does not belong to a company.'
+            ], 400);
+        }
+
+        $company = $user->company;
+
+        /*
+        |--------------------------------------------------------------------------
+        | LEADS
+        |--------------------------------------------------------------------------
+        */
+        $leadsUsed = \App\Models\Lead::where('company_id', $company->id)->count();
+
+        /*
+        |--------------------------------------------------------------------------
+        | USERS
+        |--------------------------------------------------------------------------
+        */
+        $usersUsed = \App\Models\User::where('company_id', $company->id)->count();
+
+        /*
+        |--------------------------------------------------------------------------
+        | PRODUCTS
+        |--------------------------------------------------------------------------
+        */
+        $productsUsed = \App\Models\Product::where('company_id', $company->id)->count();
+
+        /*
+        |--------------------------------------------------------------------------
+        | STORAGE (GB)
+        |--------------------------------------------------------------------------
+        */
+        $storageUsed = $company->storage_use ?? 0;
+
+        /*
+        |--------------------------------------------------------------------------
+        | ACTIVE DEALS
+        |--------------------------------------------------------------------------
+        */
+        $activeDealsUsed = \App\Models\Sale::where('company_id', $company->id)
+            ->where('status', '!=', 'closed')
+            ->count();
+
+        /*
+        |--------------------------------------------------------------------------
+        | TASKS
+        |--------------------------------------------------------------------------
+        */
+        $tasksUsed = \App\Models\Task::whereHas('lead', function ($q) use ($company) {
+            $q->where('company_id', $company->id);
+        })->count();
+
+        /*
+        |--------------------------------------------------------------------------
+        | INTEGRATIONS
+        |--------------------------------------------------------------------------
+        */
+        $integrations = [
+            'n8n'        => \App\Models\N8nIntegration::class,
+            'meta_ads'  => \App\Models\MetaAdsIntegration::class,
+            'google_ads'=> \App\Models\GoogleAdsIntegration::class,
+            'wpp_evo'   => \App\Models\WhatsAppEvoIntegration::class,
+        ];
+
+        $integrationsUsed = 0;
+
+        foreach ($integrations as $model) {
+            if ($model::where('company_id', $company->id)->active()->exists()) {
+                $integrationsUsed++;
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Helper for limit calculation
+        |--------------------------------------------------------------------------
+        */
+        $calculate = function ($used, $limit) {
+            if (is_null($limit)) {
+                return [
+                    'used' => $used,
+                    'limit' => null,
+                    'remaining' => null,
+                    'percentage' => null,
+                    'is_unlimited' => true,
+                ];
+            }
+
+            $remaining = max($limit - $used, 0);
+
+            return [
+                'used' => $used,
+                'limit' => $limit,
+                'remaining' => $remaining,
+                'percentage' => $limit > 0
+                    ? round(($used / $limit) * 100, 2)
+                    : 0,
+                'is_unlimited' => false,
+            ];
+        };
+
+        /*
+        |--------------------------------------------------------------------------
+        | FINAL RESPONSE
+        |--------------------------------------------------------------------------
+        */
+        return response()->json([
+            'subscription_plan' => $company->subscription_plan,
+
+            'leads' => $calculate($leadsUsed, $company->leads_limit),
+            'users' => $calculate($usersUsed, $company->users_limit),
+            'products' => $calculate($productsUsed, $company->products_limit),
+            'storage' => $calculate($storageUsed, $company->storage_limit_gb),
+            'active_deals' => $calculate($activeDealsUsed, $company->active_deals_limit),
+            'tasks' => $calculate($tasksUsed, $company->tasks_limit),
+            'integrations' => $calculate($integrationsUsed, $company->integrations_limit),
+        ]);
+    }
+
 }
